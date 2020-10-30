@@ -1,0 +1,4 @@
+
+
+class CouldNotDetermineDockerLocation(Exception):
+    pass

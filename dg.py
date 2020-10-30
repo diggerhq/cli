@@ -1,9 +1,11 @@
 from __future__ import print_function, unicode_literals
 import os
+import click
 from pathlib import Path
 from collections import OrderedDict
 import subprocess
 import webbrowser
+from jinja2 import Template
 import time
 import json
 from oyaml import load as yload, dump as ydump
@@ -11,9 +13,14 @@ try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
-import click
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
 from halo import Halo
 from PyInquirer import prompt, Separator
+from exceptions import CouldNotDetermineDockerLocation
 
 
 PROJECT = {}
@@ -66,7 +73,6 @@ class bcolors:
     def underline(cls, msg):
         cls.print(msg, cls.UNDERLINE)
 
-
 def digger_yaml():
     return "digger-master/digger.yml"
 
@@ -79,6 +85,35 @@ def update_digger_yaml(d):
     f = open(digger_yaml(), "w")
     ydump(d, f)
     PROJECT = d
+
+def find_dockerfile(path):
+    files =  os.listdir(path)
+    if "Dockerfile" in files:
+        return os.path.join(path, "Dockerfile")
+    raise CouldNotDetermineDockerLocation("Could not find dockerfile")
+
+def dockerfile_manual_entry():
+    while True:
+        print("Please enter path to Dockerfile directly")
+        path = input()
+        if os.path.exists(path):
+            return path
+        else:
+            print("error, dockerfile not found")
+
+def generate_docker_compose_file():
+    settings = get_project_settings()
+    services = settings["services"].values()
+    composeFile = pkg_resources.open_text("templates.environments.local-docker", 'docker-compose.yml')
+    composeTemplate = composeFile.read()
+    template = Template(composeTemplate)
+    composeContent = template.render({
+        "services": services
+    })
+
+    composeFile = open("digger-master/local-docker/docker-compose.yml", "w")
+    composeFile.write(composeContent)
+    composeFile.close()
 
 
 def clone_repo(url):
@@ -143,6 +178,13 @@ def cli():
     # print("Hello from " + string)
 
 @cli.command()
+def version():
+    """
+        Print the current cli version
+    """
+    print("0.1")
+
+@cli.command()
 def auth():
     webbrowser.open("file:///Users/mohamedsayed/Documents/dgr-auth/auth.html")
 
@@ -174,7 +216,7 @@ def env(action):
                 'name': 'target',
                 'message': 'Select target',
                 'choices': [
-                    "AWS ECS Fargagte",
+                    "AWS ECS Fargate",
                     "AWS EKS",
                     "AWS EC2 docker-compose",
                     "Google Cloud Run",
@@ -214,7 +256,6 @@ def env(action):
             environments.append(env_name)
         update_digger_yaml(settings)
 
-
         print("Deplyment successful!")
         print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
 
@@ -228,6 +269,14 @@ def env(action):
 """)
     elif action[0] == "apply":
         env_name = action[1]
+        Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
+        if env_name == "local-docker":
+            generate_docker_compose_file()
+            spin(2, 'Updating local environment ...')
+            print("Local environment generated!")
+            print("Use dg deploy to run local service")
+            return
+
         spin(2, 'Applying infrastructure ...')
         print("Infrastructure apply completed!")
         print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
@@ -300,8 +349,6 @@ def project(action):
         Configure a new project
     """
     if action == "init":
-
-
         questions = [
             {
                 'type': 'input',
@@ -385,69 +432,41 @@ def service(action):
 
     elif action == "add":
         
-        service_names = get_service_names()
+        # service_names = get_service_names()
+        service_names = filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd()))
+
         questions = [
-            {
-                'type': 'input',
-                'name': 'service_name',
-                'message': 'What is the service name?',
-            },
-            # {
-            #     'type': 'list',
-            #     'name': 'server_type',
-            #     'message': 'Mode?',
-            #     'choices': [
-            #         'Serverless',
-            #         'Containers',
-            #     ]
-            # },
+            
             {
                 'type': 'list',
-                'name': 'repo',
+                'name': 'service_name',
                 'message': 'select repository',
                 'choices': service_names
             },
         ]
 
         answers = prompt(questions)
-
-        repo = answers["repo"]
-        service = services()[service_names.index(repo)]
-        service_url = service["service_url"]
-        service_name = service["service_name"]
-        clone_repo(service_url)
-
-        spin(1, "determining service type ...")
-        bcolors.warn("Could not determine if Container or Serverless .. Assuming Monorepo")
-        bcolors.bold("Identified the following folder structure")
-        bcolors.okblue(f"{bcolors.BOLD}/monlith{bcolors.ENDC} [Container:/monlith/Dockerfile]")
-        bcolors.okblue(f"{bcolors.BOLD}/functions{bcolors.ENDC} [Serverless:/functions/serverless.yml]")
-        bcolors.warn(f"Is this correct? {bcolors.BOLD}[Y/N]{bcolors.ENDC}")
-        input()
-
+        service_name = answers["service_name"]
+        service_path = os.path.abspath(service_name)
 
         settings = get_project_settings()
 
-        # services:
-        #    - backend:
-        #       repo: my-backend
-        #       locator: /backend
-        #    - functions:
-        #       repo: my-backend
-        #       locator: /functions
+        try:
+            dockerfile_path = find_dockerfile(service_name)
+        except CouldNotDetermineDockerLocation as e:
+            print("Could not find dockerfile in root")
+            dockerfile_path = dockerfile_manual_entry()
+        dockerfile_path = os.path.abspath(dockerfile_path)
 
         settings["services"] = settings.get("services", {})
-        settings["services"][service_name + ".monolith"] = {
+        settings["services"][service_name] = {
+            "name": service_name,
+            "path": service_path,
+            "env_files": [],
             "publicly_accissible": True,
             "type": "container",
-            "path": "/monolith",
-            "resources": {},
-            "dependencies": {},
-        }
-        settings["services"][service_name + ".functions"] = {
-            "publicly_accissible": True,
-            "type": "serverless",
-            "path": "/functions",
+            "port": 8080,
+            "dockerfile": dockerfile_path,
             "resources": {},
             "dependencies": {},
         }
