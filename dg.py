@@ -353,7 +353,7 @@ def env(action):
         Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
 
         print("Deplyment successful!")
-        print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+        print(f"your deployment URL: http://{jobStatus['lb_url']}")
     
     elif action[0] == "build":
         env_name = action[1]
