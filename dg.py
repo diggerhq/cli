@@ -369,7 +369,7 @@ def env(action):
         service_name = first_service["name"]
         subprocess.Popen(["docker", "build", "-t", project_name, f"{service_name}/"]).communicate()
 
-        subprocess.Popen(["docker", "tag", f"{docker_registry}:latest", project_name]).communicate()
+        subprocess.Popen(["docker", "tag", f"{project_name}:latest", f"{docker_registry}:latest"]).communicate()
 
     elif action[0] == "push":
         env_name = action[1]
