@@ -1,0 +1,14 @@
+{
+  "name": "cookiecutter-drf",
+  "description": "",
+  "addons": [
+    {
+      "plan": "heroku-postgresql"
+    },
+    {
+      "plan": "heroku-redis"
+    }
+  ],
+  "stack": "container",
+  "buildpacks": []
+}

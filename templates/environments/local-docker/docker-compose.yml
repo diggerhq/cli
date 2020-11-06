@@ -1,14 +1,14 @@
 version: '3.7'
 
 services:
-  {% for service in services %}
+  {% for service in services -%}
   {{service.name}}:
-    {% if service.env_files %}
+    {% if service.env_files -%}
     env_file:
-      {% for envfile in service.env_files %}
+      {% for envfile in service.env_files -%}
       - {{envfile}}
-      {% endfor %}
-    {% endif %}
+      {%- endfor %}
+    {%- endif %}
     build:
       context: {{service.path}}
       dockerfile: {{service.dockerfile}}
@@ -16,17 +16,30 @@ services:
       - type: bind
         source: {{service.path}}
         target: /code
-    {% if service.dependencies %}
+    {% if service.dependencies or service.resources -%}
     depends_on:
-      {% for dep in service.dependencies %}
+      {% for dep in service.dependencies -%}
       - {{dep}}
-      {% endfor %}
-    {% endif %}
+      {% endfor -%}
+      {% for rname, resource in service.resources.items() -%}
+      - {{resource.name}}
+      {%- endfor %}
+    {%- endif %}
     restart: always
     image: {{service.name}}
     ports:
       - {{service.port}}
-    {% if service.command %}
+    {% if service.command -%}
     command: {{service.command}}
-    {% endif %}
-  {% endfor %}
+    {%- endif %}
+  {% for rname,resource in service.resources.items() -%}
+  {% if resource.type == "database" and resource.engine == "postgres" -%}
+  {{resource.name}}:
+    image: postgres:latest
+    env_file:
+      - {{resource.env_file}}
+    # volumes:
+    #   - ./postgres-data:/var/lib/postgresql/data   
+  {%- endif %}
+  {%- endfor %}
+  {%- endfor %}

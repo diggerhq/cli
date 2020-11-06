@@ -1,13 +1,17 @@
 from __future__ import print_function, unicode_literals
 import os
+import time
+import json
+import configparser
+import random
+from environs import Env
+import requests
 import click
 from pathlib import Path
 from collections import OrderedDict
 import subprocess
 import webbrowser
 from jinja2 import Template
-import time
-import json
 from oyaml import load as yload, dump as ydump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -22,6 +26,13 @@ from halo import Halo
 from PyInquirer import prompt, Separator
 from exceptions import CouldNotDetermineDockerLocation
 
+
+# TODO: use pkg_resources_insead of __file__ since latter will not work for egg
+BASE_PATH = os.path.dirname(__file__)
+
+env = Env()
+env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
+BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
 
 PROJECT = {}
 
@@ -105,14 +116,39 @@ def generate_docker_compose_file():
     settings = get_project_settings()
     services = settings["services"].values()
     composeFile = pkg_resources.open_text("templates.environments.local-docker", 'docker-compose.yml')
-    composeTemplate = composeFile.read()
-    template = Template(composeTemplate)
-    composeContent = template.render({
+    composeContent = composeFile.read()
+    composeTemplate = Template(composeContent)
+
+    # generate environment files
+    for service in settings["services"].values():
+        for resource in service["resources"].values():
+            env_path = "digger-master/local-docker/"
+            env_file = f"{service['name']}_{resource['name']}.env"
+            # assuming its a database
+            envFile = pkg_resources.open_text("templates.environments.local-docker", f".{resource['engine'].lower()}.env")
+            envContent = envFile.read()
+            envTemplate = Template(envContent)
+            envContentRendered = envTemplate.render({
+                "dbhost": resource["name"],
+                "dbname": resource["name"],
+                "dbuser": resource["engine"],
+                "dbpassword": "password",
+            })
+
+            envFile = open(f"{env_path}{env_file}", "w")
+            envFile.write(envContentRendered)
+            envFile.close()
+
+            resource["env_file"] = env_file
+            service["env_files"] = service.get("env_files", [])
+            service["env_files"].append(env_file)
+
+    composeContentRendered = composeTemplate.render({
         "services": services
     })
 
     composeFile = open("digger-master/local-docker/docker-compose.yml", "w")
-    composeFile.write(composeContent)
+    composeFile.write(composeContentRendered)
     composeFile.close()
 
 
@@ -150,6 +186,15 @@ def services():
         #     "service_url": "https://github.com/diggerhq/todo-reminders",
         # }
     ]
+
+def get_targets():
+    return {
+        "AWS ECS Fargate": "aws_fargate",
+        "(soon!) AWS EKS": "aws_eks",
+        "(soon!) AWS EC2 docker-compose": "aws_ec2_compose",
+        "(soon!) Google Cloud Run": "gcp_cloudrun",
+        "(soon!) Google GKE": "gcp_gke",
+    }
 
 def get_service_names():
     return list(map(lambda x: x["service_name"], services()))
@@ -209,25 +254,24 @@ def env(action):
             print(f">> {env}")
 
     elif action[0] == "create":
+        targets = get_targets()
         env_name = action[1]
         questions = [
             {
                 'type': 'list',
                 'name': 'target',
                 'message': 'Select target',
-                'choices': [
-                    "AWS ECS Fargate",
-                    "AWS EKS",
-                    "AWS EC2 docker-compose",
-                    "Google Cloud Run",
-                    "Google GKE",
-                ]
+                'choices': targets.keys()
             },
         ]
 
         answers = prompt(questions)
 
         target = answers["target"]
+
+        if target != "AWS ECS Fargate":
+            bcolors.fail("This option is currently unsupported! Please try again")
+            return
 
         if target == "AWS EC2 docker-compose":  
             questions = [
@@ -244,21 +288,109 @@ def env(action):
             ]
             answers = prompt(questions)
 
-
-        spin(2, 'Loading creds from ~/.aws/creds')
-        spin(2, 'Generating terraform packages ...')
-        spin(2, 'Applying infrastructure ...')
-        spin(2, 'deploying packages ...')
-
+        # spin(2, 'Loading creds from ~/.aws/creds')
+        # spin(2, 'Generating terraform packages ...')
+        # spin(2, 'Applying infrastructure ...')
+        # spin(2, 'deploying packages ...')
         settings = get_project_settings()
+        first_service = next(iter(settings["services"].values()))
+
+        project_name = settings["project"]["name"]
+        response = requests.post(f"{BACKEND_ENDPOINT}/api/create", data={
+            "project_name": project_name,
+            "project_type": targets[target],
+            "backend_bucket_name": "digger-terraform-states",
+            "backend_bucket_region": "eu-west-1",
+            "backend_bucket_key": f"{project_name}/project",
+            "container_port": first_service["port"]
+        })
+        
+        job = json.loads(response.content)
+
+        # loading until infra status is complete
+        spinner = Halo(text="generating infrastructure ...", spinner="dots")
+        spinner.start()
+        while True:
+            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/jobs/{job['job_id']}/status")
+            print(statusResponse.content)
+            jobStatus = json.loads(statusResponse.content)
+            if jobStatus["status"] == "COMPLETED":
+                break
+            time.sleep(2)
+
+        spinner.stop()
+
+        # aws profile creation
+        spinner = Halo(text="creating aws profile ...", spinner="dots")
+        profile_name = "digger-" + project_name
+        spinner.start()
+        awscredsFile = f"{os.getenv('HOME')}/.aws/credentials"
+        awsconfig = configparser.ConfigParser()
+        awsconfig.read(awscredsFile)
+
+        uniq_profile_name = profile_name
+        while uniq_profile_name in awsconfig:
+            uniq_profile_name = profile_name + str(random.randint(1,10000))
+        profile_name = uniq_profile_name
+
+        awsconfig[profile_name] = {}
+        awsconfig[profile_name]["aws_access_key_id"] = jobStatus["access_key"]
+        awsconfig[profile_name]["aws_secret_access_key"] = jobStatus["secret_id"]
+
+        with open(awscredsFile, 'w') as f:
+            awsconfig.write(f)
+        spinner.stop()
+
         environments = settings["environments"]
         if env_name not in environments:
             environments.append(env_name)
+        # TODO: profile should be stored in environment not root file
+        settings["project"]["aws_profile"] = profile_name
+        settings["project"]["docker_registry"] = jobStatus["docker_registry"]
         update_digger_yaml(settings)
+
+        # create a directory for this environment (for environments and secrets)
+        Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
 
         print("Deplyment successful!")
         print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+    
+    elif action[0] == "build":
+        env_name = action[1]
 
+        settings = get_project_settings()
+        project_name = settings["project"]["name"]
+        docker_registry = settings["project"]["docker_registry"]
+        # for service in settings["services"]:
+        #     service_name = service["name"]
+        
+        # TODO: replace with service name here
+        first_service = next(iter(settings["services"].values()))
+        service_name = first_service["name"]
+        subprocess.Popen(["docker", "build", "-t", project_name, f"{service_name}/"]).communicate()
+
+        subprocess.Popen(["docker", "tag", f"{docker_registry}:latest", project_name]).communicate()
+
+    elif action[0] == "push":
+        env_name = action[1]
+        settings = get_project_settings()     
+        profile_name = settings["project"]["aws_profile"]
+        docker_registry = settings["project"]["docker_registry"]
+        registry_endpoint = docker_registry.split("/")[0]
+
+        proc = subprocess.Popen(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], stdout=subprocess.PIPE)
+        docker_auth = proc.stdout.read()
+
+        subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
+        subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
+
+    elif action[0] == "deploy":
+        targets = get_targets()
+        env_name = action[1]
+
+        # perform deployment here
+
+    
     elif action[0] == "history":
         print(f"""
 {bcolors.OKCYAN}commit b5b15d4d{bcolors.ENDC} fix monolith
@@ -295,43 +427,10 @@ def env(action):
         print("Revert completed!")
         print(f"{bcolors.OKCYAN}your deployment URL:{bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
 
-
-        # f"""
-        # {bcolors.OKCYAN}commit b5b15d4dcd4e989a98d411627fa99441a68eeb15{bcolors.ENDC}
-        # Author: motatoes <moe.habib9@gmail.com>
-        # Date:   Thu Oct 29 09:58:23 2020 +0000
-
-        #     fix monolith
-
-        # {bcolors.OKCYAN}commit 9b402a4c3802cca46a4764815a2650111c780967{bcolors.ENDC}
-        # Author: motatoes <moe.habib9@gmail.com>
-        # Date:   Tue Oct 6 11:56:49 2020 +0100
-
-        #     fix downstream calls
-
-        # {bcolors.OKBLUE}infra e3f9ab4c852aecfa86c540cd3787f16a8c8882ff{bcolors.ENDC}
-        # Author: motatoes <moe.habib9@gmail.com>
-        # Date:   Tue Oct 6 09:00:25 2020 +0100
-
-        #     initial infrastructure
-
-        # {bcolors.OKCYAN}commit 8be5fe360cbd4d7949d157b90776fa7c76fd8601{bcolors.ENDC}
-        # Author: motatoes <moe.habib9@gmail.com>
-        # Date:   Thu Oct 1 10:47:54 2020 +0100
-
-        #     fix flask
-
-        # {bcolors.OKPINK}config 2cc5a97928643c04fe95e1d076d463986d964394{bcolors.ENDC}
-        # Merge: a0d1514 976f059
-        # Author: motatoes <moe.habib9@gmail.com>
-        # Date:   Mon Nov 4 17:08:19 2019 +0000
-
-        #     update config for postgres_user, postgres_host
-
-        # {bcolors.OKCYAN}commit 976f0591213334f78cbaa156222aa443bd4a8ef5{bcolors.ENDC}
-        # Author: motatoes <moe.habib9@gmail.com>
-        # Date:   Sat Nov 2 20:55:04 2019 +0000    
-        # """
+    elif action[0] == "up":
+        env_name = action[1]
+        if env_name == "local-docker":
+            subprocess.Popen(["docker-compose", "-f", "digger-master/local-docker/docker-compose.yml", "up"]).communicate()
 
 
 @cli.command()
@@ -605,8 +704,8 @@ def resource(action, resource_type):
                 'name': 'engine',
                 'message': 'Which Engine',
                 'choices': [
-                    'Postgres',
-                    'MySql',
+                    'postgres',
+                    'mysql',
                 ]
             })
         elif resource_type == "email":
@@ -636,6 +735,7 @@ def resource(action, resource_type):
         engine = answers["engine"]
 
         settings["services"][service_name]["resources"][resource_name] = {
+            "name": resource_name,
             "type": "database",
             "engine": engine,
         }
@@ -644,4 +744,5 @@ def resource(action, resource_type):
 
         print("DGL Config updated")
 
-
+    else:
+        bcolors.warn(f"Error, unkonwn action {action}")
