@@ -529,7 +529,7 @@ def service(action):
         print("Service repositories created")
 
     elif action == "add":
-
+        
         # service_names = get_service_names()
         service_names = filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd()))
 
