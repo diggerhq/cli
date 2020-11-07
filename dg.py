@@ -26,7 +26,6 @@ from halo import Halo
 from PyInquirer import prompt, Separator
 from exceptions import CouldNotDetermineDockerLocation
 
-
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 BASE_PATH = os.path.dirname(__file__)
 
@@ -103,14 +102,36 @@ def find_dockerfile(path):
         return os.path.join(path, "Dockerfile")
     raise CouldNotDetermineDockerLocation("Could not find dockerfile")
 
-def dockerfile_manual_entry():
+def dockerfile_manual_entry(service_name):
+    questions = [
+        {
+            'type': 'list',
+            'name': 'dockerfile_options',
+            'message': 'Every service must have Dockerfile',
+            'choices': ['Generate Dockerfile', 'Enter path to Dockerfile']
+        },
+    ]
     while True:
-        print("Please enter path to Dockerfile directly")
-        path = input()
-        if os.path.exists(path):
-            return path
+        answers = prompt(questions)
+        dockerfile_option = answers["dockerfile_options"]
+        if dockerfile_option == "Generate Dockerfile":
+            if not os.path.exists(f"{service_name}/package.json"):
+                print("ERROR: Dockerfile generation only works for node.js, more coming soon")
+                continue
+            dockerfile_template_content = pkg_resources.open_text("templates.environments.local-docker", 'node.Dockerfile').read()
+            dockerfile_template = Template(dockerfile_template_content)
+            dockerfile_text = dockerfile_template.render({})
+            dockerfile_path = f"{service_name}/Dockerfile"
+            with open(dockerfile_path, "w") as file:
+                file.write(dockerfile_text)
+            return dockerfile_path
         else:
-            print("error, dockerfile not found")
+            print("Please enter path to Dockerfile directly")
+            path = input()
+            if os.path.exists(path):
+                return path
+            else:
+                print("error, dockerfile not found")
 
 def generate_docker_compose_file():
     settings = get_project_settings()
@@ -406,7 +427,7 @@ def env(action):
             generate_docker_compose_file()
             spin(2, 'Updating local environment ...')
             print("Local environment generated!")
-            print("Use dg deploy to run local service")
+            print("Use `dg env up local-docker` to run your stack locally")
             return
 
         spin(2, 'Applying infrastructure ...')
@@ -554,7 +575,7 @@ def service(action):
             dockerfile_path = find_dockerfile(service_name)
         except CouldNotDetermineDockerLocation as e:
             print("Could not find dockerfile in root")
-            dockerfile_path = dockerfile_manual_entry()
+            dockerfile_path = dockerfile_manual_entry(service_name)
         dockerfile_path = os.path.abspath(dockerfile_path)
 
         settings["services"] = settings.get("services", {})
