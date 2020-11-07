@@ -377,10 +377,9 @@ def env(action):
         profile_name = settings["project"]["aws_profile"]
         docker_registry = settings["project"]["docker_registry"]
         registry_endpoint = docker_registry.split("/")[0]
-
-        proc = subprocess.Popen(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], stdout=subprocess.PIPE)
-        docker_auth = proc.stdout.read()
-
+        profile_name="digger"
+        proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], capture_output=True)
+        docker_auth = proc.stdout.decode("utf-8")
         subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
         subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
 
