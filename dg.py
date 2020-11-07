@@ -26,7 +26,6 @@ from halo import Halo
 from PyInquirer import prompt, Separator
 from exceptions import CouldNotDetermineDockerLocation
 
-
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 BASE_PATH = os.path.dirname(__file__)
 
@@ -406,7 +405,7 @@ def env(action):
             generate_docker_compose_file()
             spin(2, 'Updating local environment ...')
             print("Local environment generated!")
-            print("Use dg deploy to run local service")
+            print("Use `dg env up local-docker` to run your stack locally")
             return
 
         spin(2, 'Applying infrastructure ...')
