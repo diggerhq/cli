@@ -26,7 +26,6 @@ from halo import Halo
 from PyInquirer import prompt, Separator
 from exceptions import CouldNotDetermineDockerLocation
 
-
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 BASE_PATH = os.path.dirname(__file__)
 
@@ -353,7 +352,7 @@ def env(action):
         Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
 
         print("Deplyment successful!")
-        print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+        print(f"your deployment URL: http://{jobStatus['lb_url']}")
     
     elif action[0] == "build":
         env_name = action[1]
@@ -405,7 +404,7 @@ def env(action):
             generate_docker_compose_file()
             spin(2, 'Updating local environment ...')
             print("Local environment generated!")
-            print("Use dg deploy to run local service")
+            print("Use `dg env up local-docker` to run your stack locally")
             return
 
         spin(2, 'Applying infrastructure ...')
