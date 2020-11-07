@@ -638,7 +638,7 @@ def webapp(action):
 
         print("Service repositories created")
 
-    elif action == "add":  
+    elif action == "add":
 
         service_names = get_service_names()
         questions = [
