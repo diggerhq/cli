@@ -249,7 +249,7 @@ def env(action):
     if action[0] == "list":
         settings = get_project_settings()
         spin(1, "Loading environment list ...")
-        for env in settings["environments"]:
+        for env in settings["environments"].keys():
             print(f">> {env}")
 
     elif action[0] == "create":
@@ -341,8 +341,10 @@ def env(action):
         spinner.stop()
 
         environments = settings["environments"]
-        if env_name not in environments:
-            environments.append(env_name)
+        environments[env_name] = {
+            "target": targets[target],
+            "lb_url": jobStatus["lb_url"],
+        }
         # TODO: profile should be stored in environment not root file
         settings["project"]["aws_profile"] = profile_name
         settings["project"]["docker_registry"] = jobStatus["docker_registry"]
@@ -376,17 +378,35 @@ def env(action):
         profile_name = settings["project"]["aws_profile"]
         docker_registry = settings["project"]["docker_registry"]
         registry_endpoint = docker_registry.split("/")[0]
-        profile_name="digger"
         proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], capture_output=True)
         docker_auth = proc.stdout.decode("utf-8")
         subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
         subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
 
     elif action[0] == "deploy":
-        targets = get_targets()
         env_name = action[1]
 
-        # perform deployment here
+        settings = get_project_settings()
+        target = settings["environments"][env_name]["target"]
+        lb_url = settings["environments"][env_name]["lb_url"]
+        docker_registry = settings["project"]["docker_registry"]
+        first_service = next(iter(settings["services"].values()))
+
+        project_name = settings["project"]["name"]
+
+        response = requests.post(f"{BACKEND_ENDPOINT}/api/deploy", data={
+            "cluster_name": f"{project_name}-dev",
+            "service_name": f"{project_name}-dev",
+            "image_url": f"{docker_registry}:latest",
+        })
+
+        spinner = Halo(text="deploying ...", spinner="dots")
+        spinner.start()
+        output = json.loads(response.content)
+        spinner.stop()
+
+        print(output["msg"])
+        print(f"your deployment URL: http://{lb_url}")
 
     
     elif action[0] == "history":
@@ -469,9 +489,10 @@ def project(action):
         settings["project"] = {
                 "name": project_name
         }
-        settings["environments"] = [
-            "local-docker"
-        ]
+        settings["environments"] = settings.get("environments", {})
+        settings["environments"]["local-docker"] = {
+            "target": "docker"
+        }
 
         update_digger_yaml(settings)
 
@@ -533,7 +554,6 @@ def service(action):
         service_names = filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd()))
 
         questions = [
-            
             {
                 'type': 'list',
                 'name': 'service_name',
