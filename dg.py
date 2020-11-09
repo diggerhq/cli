@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+import sys
 import time
 import json
 import configparser
@@ -26,8 +27,16 @@ from halo import Halo
 from PyInquirer import prompt, Separator
 from exceptions import CouldNotDetermineDockerLocation
 
+
+def get_base_path():
+    # for pyinstaller binaries we use sys.MEIPASS otherwise fetch from __file__
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    else:
+        return os.path.abspath(os.path.dirname(__file__))
+
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
-BASE_PATH = os.path.dirname(__file__)
+BASE_PATH = get_base_path()
 
 env = Env()
 env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
@@ -764,3 +773,11 @@ def resource(action, resource_type):
 
     else:
         bcolors.warn(f"Error, unkonwn action {action}")
+
+
+
+
+
+# exec main function if frozen binary   
+if getattr(sys, 'frozen', False):
+    cli(sys.argv[1:])

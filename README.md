@@ -9,3 +9,12 @@
 - pip install --editable . 
 - now test with `dg` -- you should see a help screen
 - start from a blank folder
+
+
+## Releasing
+
+- create a virtualenv for packaging
+- pip install -r requirements.txt
+- pip insall pyinstaller
+- ` pyinstaller dg.spec
+- The released binary will be in dist/ folder
