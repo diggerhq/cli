@@ -7,7 +7,7 @@ a = Analysis(['dg.py'],
              pathex=['/Users/mohamedsayed/dev/digger/cli'],
              binaries=[],
              datas=[
-              ('env', 'env' ),
+              ('env/pyinstaller', 'env' ),
               ('templates', 'templates' )
              ],
              hiddenimports=[],
