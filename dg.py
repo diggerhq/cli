@@ -41,7 +41,7 @@ BASE_PATH = get_base_path()
 env = Env()
 env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
 BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
-print(BACKEND_ENDPOINT)
+
 PROJECT = {}
 
 class bcolors:
