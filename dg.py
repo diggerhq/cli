@@ -161,7 +161,14 @@ def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
 
     return answers
 
-    
+def get_digger_profile(projectName, environment):
+    global DIGGERHOME_PATH
+    diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
+    diggerProfileName = f"{projectName}-{environment}"
+    diggerconfig = configparser.ConfigParser()
+    diggerconfig.read(diggercredsFile)
+    return diggerconfig[diggerProfileName]
+
 def retreive_aws_creds(projectName, environment):
     global DIGGERHOME_PATH
     Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
@@ -487,19 +494,26 @@ def env(action):
         lb_url = settings["environments"][env_name]["lb_url"]
         docker_registry = settings["project"]["docker_registry"]
         first_service = next(iter(settings["services"].values()))
-
         project_name = settings["project"]["name"]
+        
+        diggerProfile = get_digger_profile(project_name, env_name)
+        awsKey = diggerProfile.get("aws_access_key_id", None)
+        awsSecret = diggerProfile.get("aws_secret_access_key", None)
 
         response = requests.post(f"{BACKEND_ENDPOINT}/api/deploy", data={
             "cluster_name": f"{project_name}-dev",
             "service_name": f"{project_name}-dev",
             "image_url": f"{docker_registry}:latest",
+            "aws_key": awsKey,
+            "aws_secret": awsSecret
         })
 
         spinner = Halo(text="deploying ...", spinner="dots")
         spinner.start()
         output = json.loads(response.content)
         spinner.stop()
+
+        
 
         print(output["msg"])
         print(f"your deployment URL: http://{lb_url}")
