@@ -526,8 +526,7 @@ def env(action):
             {
                 'type': 'input',
                 'name': 'sure',
-                'message': 'Are you sure (Y/N)?',
-                'choices': targets.keys()
+                'message': 'Are you sure (Y/N)?'
             },
         ]
 
@@ -537,6 +536,7 @@ def env(action):
             return
 
         settings = get_project_settings()
+        project_name = settings["project"]["name"]
         diggerProfile = get_digger_profile(project_name, env_name)
         awsKey = diggerProfile.get("aws_access_key_id", None)
         awsSecret = diggerProfile.get("aws_secret_access_key", None)
