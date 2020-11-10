@@ -37,8 +37,8 @@ def get_base_path():
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 BASE_PATH = get_base_path()
-
-env = Env()
+HOMEDIR_PATH = str(Path.home())
+DIGGERHOME_PATH = os.path.join(HOMEDIR_PATH, ".digger/")
 env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
 BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
 
@@ -120,6 +120,76 @@ def dockerfile_manual_entry():
         else:
             print("error, dockerfile not found")
 
+def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
+    if currentAwsKey is None or currentAwsSecret is None:
+        questions = [
+            {
+                'type': 'input',
+                'name': 'aws_key',
+                'message': f'Your AWS Key',
+                'validate': lambda x: len(x) > 0
+            },
+            {
+                'type': 'input',
+                'name': 'aws_secret',
+                'message': f'Your AWS Secret',
+                'validate': lambda x: len(x) > 0
+            },
+        ]
+        answers = prompt(questions)
+    else:
+        maskedAwsKey = currentAwsKey[:4]
+        maskedAwsSecret = currentAwsSecret[:4]
+
+        questions = [
+            {
+                'type': 'input',
+                'name': 'aws_key',
+                'message': f'Your AWS Key (***{maskedAwsKey})',
+            },
+            {
+                'type': 'input',
+                'name': 'aws_secret',
+                'message': f'Your AWS Secret (***{maskedAwsSecret})'
+            },
+        ]
+
+        answers = prompt(questions)
+        answers["aws_key"] = currentAwsKey if answers["aws_key"] == "" else answers["aws_key"]
+        answers["aws_secret"] = currentAwsKey if answers["aws_secret"] == "" else answers["aws_secret"]
+
+    return answers
+
+    
+def retreive_aws_creds(project, environment):
+    global DIGGERHOME_PATH
+    Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
+    diggercredsFile = os.path.join(DIGGERHOME_PATH, ".credentials")
+    diggerProfileName = f"{project}-{environment}"
+    diggerconfig = configparser.ConfigParser()
+    diggerconfig.read(diggercredsFile)
+
+    diggerconfig[diggerProfileName] = diggerconfig.get(diggerProfileName, {})
+    
+    currentAwsKey = diggerconfig[diggerProfileName].get("aws_access_key_id", None)
+    currentAwsSecret = diggerconfig[diggerProfileName].get("aws_secret_access_key", None)
+
+    answers = prompt_for_aws_keys(currentAwsKey, currentAwsSecret)
+
+    newAwsKey = answers["aws_key"]
+    newAwsSecret = answers["aws_secret"]
+
+    diggerconfig[diggerProfileName]["aws_access_key_id"] = newAwsKey
+    diggerconfig[diggerProfileName]["aws_secret_access_key"] = newAwsSecret
+
+    with open(diggercredsFile, 'w') as f:
+        diggerconfig.write(f)
+
+    return {
+        "aws_key": newAwsKey,
+        "aws_secret": newAwsSecret
+    }
+
 def generate_docker_compose_file():
     settings = get_project_settings()
     services = settings["services"].values()
@@ -198,6 +268,7 @@ def services():
 def get_targets():
     return {
         "AWS ECS Fargate": "aws_fargate",
+        "Digger Paas": "digger_paas",
         "(soon!) AWS EKS": "aws_eks",
         "(soon!) AWS EC2 docker-compose": "aws_ec2_compose",
         "(soon!) Google Cloud Run": "gcp_cloudrun",
@@ -277,7 +348,7 @@ def env(action):
 
         target = answers["target"]
 
-        if target != "AWS ECS Fargate":
+        if target not in ["AWS ECS Fargate", "Digger Paas"]:
             bcolors.fail("This option is currently unsupported! Please try again")
             return
 
@@ -296,6 +367,9 @@ def env(action):
             ]
             answers = prompt(questions)
 
+        if target == "AWS ECS Fargate":
+            credentials = retreive_aws_creds()
+
         # spin(2, 'Loading creds from ~/.aws/creds')
         # spin(2, 'Generating terraform packages ...')
         # spin(2, 'Applying infrastructure ...')
@@ -305,6 +379,8 @@ def env(action):
 
         project_name = settings["project"]["name"]
         response = requests.post(f"{BACKEND_ENDPOINT}/api/create", data={
+            "aws_key": credentials["aws_key"],
+            "aws_secret": credentials["aws_secret"],
             "project_name": project_name,
             "project_type": targets[target],
             "backend_bucket_name": "digger-terraform-states",
