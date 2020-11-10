@@ -495,7 +495,7 @@ def env(action):
         docker_registry = settings["project"]["docker_registry"]
         first_service = next(iter(settings["services"].values()))
         project_name = settings["project"]["name"]
-        
+
         diggerProfile = get_digger_profile(project_name, env_name)
         awsKey = diggerProfile.get("aws_access_key_id", None)
         awsSecret = diggerProfile.get("aws_secret_access_key", None)
@@ -513,12 +513,63 @@ def env(action):
         output = json.loads(response.content)
         spinner.stop()
 
-        
-
         print(output["msg"])
         print(f"your deployment URL: http://{lb_url}")
 
-    
+
+    elif action[0] == "destroy":
+
+        env_name = action[1]
+
+
+        questions = [
+            {
+                'type': 'input',
+                'name': 'sure',
+                'message': 'Are you sure (Y/N)?',
+                'choices': targets.keys()
+            },
+        ]
+
+        answers = prompt(questions)
+        if answers["sure"] != "Y":
+            bcolors.fail("aborting")
+            return
+
+        settings = get_project_settings()
+        diggerProfile = get_digger_profile(project_name, env_name)
+        awsKey = diggerProfile.get("aws_access_key_id", None)
+        awsSecret = diggerProfile.get("aws_secret_access_key", None)
+        project_name = settings["project"]["name"]
+
+        first_service = next(iter(settings["services"].values()))
+
+        response = requests.post(f"{BACKEND_ENDPOINT}/api/destroy", data={
+            "aws_key": awsKey,
+            "aws_secret": awsSecret,
+            "project_name": project_name,
+            "backend_bucket_name": "digger-terraform-states",
+            "backend_bucket_region": "eu-west-1",
+            "backend_bucket_key": f"{project_name}/project",
+            "container_port": first_service["port"]
+        })
+        
+        job = json.loads(response.content)
+
+        # loading until infra status is complete
+        spinner = Halo(text="destroying infrastructure ...", spinner="dots")
+        spinner.start()
+        while True:
+            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/destroy_jobs/{job['job_id']}/status")
+            print(statusResponse.content)
+            jobStatus = json.loads(statusResponse.content)
+            if jobStatus["status"] == "COMPLETED":
+                break
+            time.sleep(2)
+
+        spinner.stop()        
+        bcolors.okgreen("Infrasructure destroyed successfully")
+
     elif action[0] == "history":
         print(f"""
 {bcolors.OKCYAN}commit b5b15d4d{bcolors.ENDC} fix monolith
