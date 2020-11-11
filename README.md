@@ -13,8 +13,14 @@
 
 ## Releasing
 
+### On host:
 - create a virtualenv for packaging
 - pip install -r requirements.txt
 - pip insall pyinstaller
-- ` pyinstaller dg.spec
+- ` pyinstaller dg.spec`
 - The released binary will be in dist/ folder
+
+### Using docker:
+-  docker build -t dg-release-debian -f docker/Dockerfile-release.debian .
+- docker run -it -v $PWD/dist:/dist dg-release-debian
+- The resulting binary will be in the dist/ folder, you can modify this by changing the first argument to `-v`
