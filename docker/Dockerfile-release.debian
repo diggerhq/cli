@@ -7,6 +7,6 @@ WORKDIR /code
 
 RUN pwd
 
-RUN pip install -r requirements.txt && pip install pyinstaller
+RUN pip install -r requirements.txt && pip install pyinstaller===3.5
 
 ENTRYPOINT "docker/scripts/release.sh"
