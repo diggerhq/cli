@@ -37,7 +37,8 @@ def get_base_path():
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 BASE_PATH = get_base_path()
-
+HOMEDIR_PATH = str(Path.home())
+DIGGERHOME_PATH = os.path.join(HOMEDIR_PATH, ".digger/")
 env = Env()
 env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
 BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
@@ -120,6 +121,84 @@ def dockerfile_manual_entry():
         else:
             print("error, dockerfile not found")
 
+def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
+    if currentAwsKey is None or currentAwsSecret is None:
+        questions = [
+            {
+                'type': 'input',
+                'name': 'aws_key',
+                'message': f'Your AWS Key',
+                'validate': lambda x: len(x) > 0
+            },
+            {
+                'type': 'input',
+                'name': 'aws_secret',
+                'message': f'Your AWS Secret',
+                'validate': lambda x: len(x) > 0
+            },
+        ]
+        answers = prompt(questions)
+    else:
+        maskedAwsKey = currentAwsKey[:4]
+        maskedAwsSecret = currentAwsSecret[:4]
+
+        questions = [
+            {
+                'type': 'input',
+                'name': 'aws_key',
+                'message': f'Your AWS Key ({maskedAwsKey}***)',
+            },
+            {
+                'type': 'input',
+                'name': 'aws_secret',
+                'message': f'Your AWS Secret ({maskedAwsSecret}***)'
+            },
+        ]
+
+        answers = prompt(questions)
+        answers["aws_key"] = currentAwsKey if answers["aws_key"] == "" else answers["aws_key"]
+        answers["aws_secret"] = currentAwsSecret if answers["aws_secret"] == "" else answers["aws_secret"]
+
+    return answers
+
+def get_digger_profile(projectName, environment):
+    global DIGGERHOME_PATH
+    diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
+    diggerProfileName = f"{projectName}-{environment}"
+    diggerconfig = configparser.ConfigParser()
+    diggerconfig.read(diggercredsFile)
+    return diggerconfig[diggerProfileName]
+
+def retreive_aws_creds(projectName, environment):
+    global DIGGERHOME_PATH
+    Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
+    diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
+    diggerProfileName = f"{projectName}-{environment}"
+    diggerconfig = configparser.ConfigParser()
+    diggerconfig.read(diggercredsFile)
+
+    if diggerProfileName not in diggerconfig:
+        diggerconfig[diggerProfileName] = {}
+    
+    currentAwsKey = diggerconfig[diggerProfileName].get("aws_access_key_id", None)
+    currentAwsSecret = diggerconfig[diggerProfileName].get("aws_secret_access_key", None)
+
+    answers = prompt_for_aws_keys(currentAwsKey, currentAwsSecret)
+
+    newAwsKey = answers["aws_key"]
+    newAwsSecret = answers["aws_secret"]
+
+    diggerconfig[diggerProfileName]["aws_access_key_id"] = newAwsKey
+    diggerconfig[diggerProfileName]["aws_secret_access_key"] = newAwsSecret
+
+    with open(diggercredsFile, 'w') as f:
+        diggerconfig.write(f)
+
+    return {
+        "aws_key": newAwsKey,
+        "aws_secret": newAwsSecret
+    }
+
 def generate_docker_compose_file():
     settings = get_project_settings()
     services = settings["services"].values()
@@ -197,6 +276,7 @@ def services():
 
 def get_targets():
     return {
+        "Digger Paas": "digger_paas",
         "AWS ECS Fargate": "aws_fargate",
         "(soon!) AWS EKS": "aws_eks",
         "(soon!) AWS EC2 docker-compose": "aws_ec2_compose",
@@ -264,6 +344,9 @@ def env(action):
     elif action[0] == "create":
         targets = get_targets()
         env_name = action[1]
+        settings = get_project_settings()
+        project_name = settings["project"]["name"]
+
         questions = [
             {
                 'type': 'list',
@@ -277,11 +360,11 @@ def env(action):
 
         target = answers["target"]
 
-        if target != "AWS ECS Fargate":
+        if target not in ["AWS ECS Fargate", "Digger Paas"]:
             bcolors.fail("This option is currently unsupported! Please try again")
             return
 
-        if target == "AWS EC2 docker-compose":  
+        if target == "AWS EC2 docker-compose":
             questions = [
                 {
                     'type': 'list',
@@ -296,15 +379,26 @@ def env(action):
             ]
             answers = prompt(questions)
 
+        if target == "AWS ECS Fargate":
+            credentials = retreive_aws_creds(project_name, env_name)
+        elif target == "Digger Paas":
+            credentials = {
+                "aws_key": None,
+                "aws_secret": None
+            }
+
+
         # spin(2, 'Loading creds from ~/.aws/creds')
         # spin(2, 'Generating terraform packages ...')
         # spin(2, 'Applying infrastructure ...')
         # spin(2, 'deploying packages ...')
-        settings = get_project_settings()
+
         first_service = next(iter(settings["services"].values()))
 
-        project_name = settings["project"]["name"]
+        
         response = requests.post(f"{BACKEND_ENDPOINT}/api/create", data={
+            "aws_key": credentials["aws_key"],
+            "aws_secret": credentials["aws_secret"],
             "project_name": project_name,
             "project_type": targets[target],
             "backend_bucket_name": "digger-terraform-states",
@@ -400,13 +494,18 @@ def env(action):
         lb_url = settings["environments"][env_name]["lb_url"]
         docker_registry = settings["project"]["docker_registry"]
         first_service = next(iter(settings["services"].values()))
-
         project_name = settings["project"]["name"]
+
+        diggerProfile = get_digger_profile(project_name, env_name)
+        awsKey = diggerProfile.get("aws_access_key_id", None)
+        awsSecret = diggerProfile.get("aws_secret_access_key", None)
 
         response = requests.post(f"{BACKEND_ENDPOINT}/api/deploy", data={
             "cluster_name": f"{project_name}-dev",
             "service_name": f"{project_name}-dev",
             "image_url": f"{docker_registry}:latest",
+            "aws_key": awsKey,
+            "aws_secret": awsSecret
         })
 
         spinner = Halo(text="deploying ...", spinner="dots")
@@ -417,7 +516,60 @@ def env(action):
         print(output["msg"])
         print(f"your deployment URL: http://{lb_url}")
 
-    
+
+    elif action[0] == "destroy":
+
+        env_name = action[1]
+
+
+        questions = [
+            {
+                'type': 'input',
+                'name': 'sure',
+                'message': 'Are you sure (Y/N)?'
+            },
+        ]
+
+        answers = prompt(questions)
+        if answers["sure"] != "Y":
+            bcolors.fail("aborting")
+            return
+
+        settings = get_project_settings()
+        project_name = settings["project"]["name"]
+        diggerProfile = get_digger_profile(project_name, env_name)
+        awsKey = diggerProfile.get("aws_access_key_id", None)
+        awsSecret = diggerProfile.get("aws_secret_access_key", None)
+        project_name = settings["project"]["name"]
+
+        first_service = next(iter(settings["services"].values()))
+
+        response = requests.post(f"{BACKEND_ENDPOINT}/api/destroy", data={
+            "aws_key": awsKey,
+            "aws_secret": awsSecret,
+            "project_name": project_name,
+            "backend_bucket_name": "digger-terraform-states",
+            "backend_bucket_region": "eu-west-1",
+            "backend_bucket_key": f"{project_name}/project",
+            "container_port": first_service["port"]
+        })
+        
+        job = json.loads(response.content)
+
+        # loading until infra status is complete
+        spinner = Halo(text="destroying infrastructure ...", spinner="dots")
+        spinner.start()
+        while True:
+            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/destroy_jobs/{job['job_id']}/status")
+            print(statusResponse.content)
+            jobStatus = json.loads(statusResponse.content)
+            if jobStatus["status"] == "COMPLETED":
+                break
+            time.sleep(2)
+
+        spinner.stop()        
+        bcolors.okgreen("Infrasructure destroyed successfully")
+
     elif action[0] == "history":
         print(f"""
 {bcolors.OKCYAN}commit b5b15d4d{bcolors.ENDC} fix monolith
