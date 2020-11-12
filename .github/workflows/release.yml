@@ -60,7 +60,7 @@ jobs:
 
   build-macos:
     needs: create-release
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v1
