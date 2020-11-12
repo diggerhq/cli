@@ -68,15 +68,9 @@ jobs:
       - name: perform pyinstaller build
         run: ./scripts/buildformac.sh
 
-      - uses: actions/upload-artifact@v2
-        id: upload_artefact
-        with:
-          name: dg-darwin
-          path: src/dist/dg-mac
-
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          zip -r dg-darwin.zip mac
+          zip -r dg-darwin.zip src/dist/dg-mac
 
       - name: Upload Release Asset
         id: upload-release-asset 
