@@ -45,10 +45,7 @@ jobs:
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          cd src/dist
-          mv linux dg-linux
-          zip -r ../../dg-linux.zip src/dist/dg-linux
-          cd ../../
+          zip -r dg-linux.zip src/dist/dg-linux
 
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -79,9 +76,7 @@ jobs:
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          cd src/dist
-          zip -r ../../dg-darwin.zip dg-mac
-          cd ../../
+          zip -r dg-darwin.zip mac
 
       - name: Upload Release Asset
         id: upload-release-asset 
