@@ -1,4 +1,4 @@
-name: install
+name: Package for mac
 
 on: 
   push:
