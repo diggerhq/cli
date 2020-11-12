@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-          name: dg-linux-${{ github.ref }}
+          name: dg-linux
           path: src/dist/linux
 
       - name: Upload Release Asset
@@ -56,7 +56,7 @@ jobs:
         with:
           upload_url: ${{needs.create-release.outputs.upload_url}}
           asset_path: src/dist/linux
-          asset_name: dg-darwin-${{ github.ref }}.zip
+          asset_name: dg-linux.zip
           asset_content_type: application/zip
 
   build-macos:
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         id: upload_artefact
         with:
-          name: dg-darwin-${{ github.ref }}
+          name: dg-darwin
           path: src/dist/mac
 
       - name: Upload Release Asset
@@ -83,7 +83,7 @@ jobs:
         with:
           upload_url: ${{needs.create-release.outputs.upload_url}}
           asset_path: src/dist/mac
-          asset_name: dg-darwin-${{ github.ref }}.zip
+          asset_name: dg-darwin.zip
           asset_content_type: application/zip
 
 
