@@ -1,0 +1,20 @@
+name: Say hello!
+
+# GitHub Actions Workflows are automatically triggered by GitHub events
+on:
+  # For this workflow, we're using the workflow_dispatch event which is triggered when the user clicks Run workflow in the GitHub Actions UI
+  workflow_dispatch:
+    # The workflow_dispatch event accepts optional inputs so you can customize the behavior of the workflow
+    inputs:
+      name:
+        description: 'Person to greet'
+        required: true
+        default: 'World'
+# When the event is triggered, GitHub Actions will run the jobs indicated
+jobs:
+  say_hello:
+    # Uses a ubuntu-lates runner to complete the requested steps
+    runs-on: ubuntu-latest
+    steps:
+    - run: |
+        echo "Hello ${{ github.event.inputs.name }}!"
