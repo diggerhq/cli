@@ -45,7 +45,10 @@ jobs:
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          zip -r --junk-paths dg-linux.zip src/dist/linux
+          cd src/dist
+          mv linux dg-linux
+          zip -r ../../dg-linux.zip src/dist/dg-linux
+          cd ../../
 
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -72,11 +75,13 @@ jobs:
         id: upload_artefact
         with:
           name: dg-darwin
-          path: src/dist/mac
+          path: src/dist/dg-mac
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          zip -r dg-darwin.zip src/dist/mac
+          cd src/dist
+          zip -r ../../dg-darwin.zip dg-mac
+          cd ../../
 
       - name: Upload Release Asset
         id: upload-release-asset 
