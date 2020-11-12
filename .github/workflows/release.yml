@@ -1,0 +1,89 @@
+name: Package and release
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+
+  create-release:
+    name: Create Release
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Changes in this Release
+            - First Change
+            - Second Change
+          draft: true
+          prerelease: true
+
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Package Application
+        uses: diggerhq/pyinstaller-action-linux@main
+        with:
+          path: src
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: dg-linux-${{ github.ref }}
+          path: src/dist/linux
+
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{needs.create-release.outputs.upload_url}}
+          asset_path: src/dist/linux
+          asset_name: dg-darwin-${{ github.ref }}.zip
+          asset_content_type: application/zip
+
+  build-macos:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: perform pyinstaller build
+        run: ./scripts/buildformac.sh
+
+      - uses: actions/upload-artifact@v2
+        id: upload_artefact
+        with:
+          name: dg-darwin-${{ github.ref }}
+          path: src/dist/mac
+
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{needs.create-release.outputs.upload_url}}
+          asset_path: src/dist/mac
+          asset_name: dg-darwin-${{ github.ref }}.zip
+          asset_content_type: application/zip
+
+
