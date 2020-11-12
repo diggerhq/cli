@@ -3,10 +3,10 @@ ENV PYTHONUNBUFFERED 1
 
 # Adds our application code to the image
 copy . /code/
-WORKDIR /code
+WORKDIR /code/
 
 RUN pwd
 
-RUN pip install -r requirements.txt && pip install pyinstaller===3.5
+RUN pip install -r src/requirements.txt && pip install pyinstaller===3.5
 
 ENTRYPOINT "docker/scripts/release.sh"
