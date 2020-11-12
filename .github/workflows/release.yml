@@ -11,9 +11,14 @@ jobs:
     name: Create Release
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_version: ${{ steps.get_version.outputs.VERSION }}
 
     runs-on: ubuntu-latest
     steps:
+      - name: Get the tag version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Create Release
@@ -45,9 +50,9 @@ jobs:
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          cd src/dist
-          zip -r ../../dg-linux.zip dg-linux
-          cd ../../
+          cd src/dist/dg-linux
+          zip -r ../../../dg-linux.zip dg
+          cd ../../../
 
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -57,8 +62,16 @@ jobs:
         with:
           upload_url: ${{needs.create-release.outputs.upload_url}}
           asset_path: dg-linux.zip
-          asset_name: dg-linux.zip
+          asset_name: dg-linux-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
+
+      - uses: shallwefootball/s3-upload-action@master
+        with:
+          aws_key_id: ${{ secrets.AWS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws_bucket: ${{ secrets.AWS_BUCKET }}
+          source_dir: dg-linux.zip
+          destination_dir: ${{needs.create-release.outputs.tag_version}}
 
   build-macos:
     needs: create-release
@@ -72,9 +85,9 @@ jobs:
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          cd src/dist
-          zip -r ../../dg-darwin.zip dg-mac
-          cd ../../
+          cd src/dist/dg-mac
+          zip -r ../../../dg-darwin.zip dg
+          cd ../../../
 
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -84,7 +97,16 @@ jobs:
         with:
           upload_url: ${{needs.create-release.outputs.upload_url}}
           asset_path: dg-darwin.zip
-          asset_name: dg-darwin.zip
+          asset_name: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
+
+
+      - uses: shallwefootball/s3-upload-action@master
+        with:
+          aws_key_id: ${{ secrets.AWS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws_bucket: ${{ secrets.AWS_BUCKET }}
+          source_dir: dg-darwin.zip
+          destination_dir: ${{needs.create-release.outputs.tag_version}}
 
 
