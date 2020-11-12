@@ -1,0 +1,23 @@
+name: install
+
+on: 
+  push:
+    branches:
+    - master
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macOS-latest] 
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Check installed versions 
+      run: ./scripts/buildformac.sh
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dg
+        path: src/dist/mac
