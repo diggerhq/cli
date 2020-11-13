@@ -167,7 +167,10 @@ def get_digger_profile(projectName, environment):
     diggerProfileName = f"{projectName}-{environment}"
     diggerconfig = configparser.ConfigParser()
     diggerconfig.read(diggercredsFile)
-    return diggerconfig[diggerProfileName]
+    if diggerProfileName in diggerconfig:
+        return diggerconfig[diggerProfileName]
+    else:
+        return {}
 
 def retreive_aws_creds(projectName, environment):
     global DIGGERHOME_PATH
@@ -712,7 +715,11 @@ def service(action):
     elif action == "add":
         
         # service_names = get_service_names()
-        service_names = filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd()))
+        service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd())))
+
+        if len(service_names) == 0:
+            bcolors.fail("No service directories found, try cloning a repo in here!")
+            return
 
         questions = [
             {
