@@ -51,7 +51,7 @@ jobs:
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
           cd src/dist/dg-linux
-          zip -r ../../../dg-linux.zip dg
+          zip -r ../../../dg-linux.dg-darwin-${{needs.create-release.outputs.tag_version}}.zip dg
           cd ../../../
 
       - name: Upload Release Asset
@@ -65,13 +65,18 @@ jobs:
           asset_name: dg-linux-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
 
-      - uses: shallwefootball/s3-upload-action@master
+      - name: Upload file to bucket
+        uses: zdurham/s3-upload-github-action@master
         with:
-          aws_key_id: ${{ secrets.AWS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-          aws_bucket: ${{ secrets.AWS_BUCKET }}
-          source_dir: dg-linux.zip
-          destination_dir: ${{needs.create-release.outputs.tag_version}}
+          args: --acl public-read
+        env:
+          FILE: ./dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+          AWS_REGION: 'eu-west-1'
+          S3_BUCKET: ${{ secrets.secrets }}
+          S3_KEY: ${{ secrets.AWS_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
 
   build-macos:
     needs: create-release
@@ -86,7 +91,7 @@ jobs:
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
           cd src/dist/dg-mac
-          zip -r ../../../dg-darwin.zip dg
+          zip -r ../../../dg-darwin-${{needs.create-release.outputs.tag_version}}.zip dg
           cd ../../../
 
       - name: Upload Release Asset
@@ -96,17 +101,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{needs.create-release.outputs.upload_url}}
-          asset_path: dg-darwin.zip
+          asset_path: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_name: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
 
-
-      - uses: shallwefootball/s3-upload-action@master
+      - name: Upload file to bucket
+        uses: zdurham/s3-upload-github-action@master
         with:
-          aws_key_id: ${{ secrets.AWS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-          aws_bucket: ${{ secrets.AWS_BUCKET }}
-          source_dir: dg-darwin.zip
-          destination_dir: ${{needs.create-release.outputs.tag_version}}
+          args: --acl public-read
+        env:
+          FILE: ./dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+          AWS_REGION: 'eu-west-1'
+          S3_BUCKET: ${{ secrets.secrets }}
+          S3_KEY: ${{ secrets.AWS_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 
