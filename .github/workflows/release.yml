@@ -51,7 +51,7 @@ jobs:
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
           cd src/dist/dg-linux
-          zip -r ../../../dg-linux.dg-darwin-${{needs.create-release.outputs.tag_version}}.zip dg
+          zip -r ../../../dg-linux-${{needs.create-release.outputs.tag_version}}.zip dg
           cd ../../../
 
       - name: Upload Release Asset
