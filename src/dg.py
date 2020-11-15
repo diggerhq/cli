@@ -13,6 +13,7 @@ from collections import OrderedDict
 import subprocess
 import webbrowser
 from jinja2 import Template
+from utils.pprint import Bcolors, Halo, spin
 from oyaml import load as yload, dump as ydump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -23,7 +24,7 @@ try:
 except ImportError:
     # Try backported to PY<37 `importlib_resources`.
     import importlib_resources as pkg_resources
-from halo import Halo
+
 from PyInquirer import prompt, Separator
 from exceptions import CouldNotDetermineDockerLocation
 
@@ -45,53 +46,6 @@ BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
 
 PROJECT = {}
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    OKPINK = '\033[35m'
-    WARN = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-    @classmethod
-    def print(cls, msg, ctype):
-        print(f"{ctype}{msg}{cls.ENDC}")
-
-    @classmethod
-    def header(cls, msg):
-        cls.print(msg, cls.HEADER)
-
-    @classmethod
-    def okblue(cls, msg):
-        cls.print(msg, cls.OKBLUE)
-
-    @classmethod
-    def okgreen(cls, msg):
-        cls.print(msg, cls.OKGREEN)
-
-    @classmethod
-    def warn(cls, msg):
-        cls.print(msg, cls.WARN)
-
-    @classmethod
-    def fail(cls, msg):
-        cls.print(msg, cls.FAIL)
-
-    @classmethod
-    def endc(cls, msg):
-        cls.print(msg, cls.ENDC)
-
-    @classmethod
-    def bold(cls, msg):
-        cls.print(msg, cls.BOLD)
-
-    @classmethod
-    def underline(cls, msg):
-        cls.print(msg, cls.UNDERLINE)
 
 def digger_yaml():
     return "digger-master/digger.yml"
@@ -245,11 +199,6 @@ def generate_docker_compose_file():
 def clone_repo(url):
     subprocess.Popen(["git", "clone", url]).communicate()
 
-def spin(t, msg, mode='dots'):
-    spinner = Halo(text=msg, spinner=mode)
-    spinner.start()
-    time.sleep(t)
-    spinner.stop()
 
 def repos():
     return [
@@ -364,7 +313,7 @@ def env(action):
         target = answers["target"]
 
         if target not in ["AWS ECS Fargate", "Digger Paas"]:
-            bcolors.fail("This option is currently unsupported! Please try again")
+            Bcolors.fail("This option is currently unsupported! Please try again")
             return
 
         if target == "AWS EC2 docker-compose":
@@ -535,7 +484,7 @@ def env(action):
 
         answers = prompt(questions)
         if answers["sure"] != "Y":
-            bcolors.fail("aborting")
+            Bcolors.fail("aborting")
             return
 
         settings = get_project_settings()
@@ -571,15 +520,15 @@ def env(action):
             time.sleep(2)
 
         spinner.stop()        
-        bcolors.okgreen("Infrasructure destroyed successfully")
+        Bcolors.okgreen("Infrasructure destroyed successfully")
 
     elif action[0] == "history":
         print(f"""
-{bcolors.OKCYAN}commit b5b15d4d{bcolors.ENDC} fix monolith
-{bcolors.OKCYAN}commit 9b402a4c{bcolors.ENDC} fix downstream calls
-{bcolors.OKBLUE}infra e3f9ab4c8{bcolors.ENDC} initial infra apply
-{bcolors.OKCYAN}commit 8be5fe36{bcolors.ENDC} fix flask
-{bcolors.OKPINK}config 2cc5a979{bcolors.ENDC} update postgres_host
+{Bcolors.OKCYAN}commit b5b15d4d{Bcolors.ENDC} fix monolith
+{Bcolors.OKCYAN}commit 9b402a4c{Bcolors.ENDC} fix downstream calls
+{Bcolors.OKBLUE}infra e3f9ab4c8{Bcolors.ENDC} initial infra apply
+{Bcolors.OKCYAN}commit 8be5fe36{Bcolors.ENDC} fix flask
+{Bcolors.OKPINK}config 2cc5a979{Bcolors.ENDC} update postgres_host
 """)
     elif action[0] == "apply":
         env_name = action[1]
@@ -600,14 +549,14 @@ def env(action):
         commit_id = action[2]
         spin(2, 'Performing rollback ...')
         print("Rollback completed!")
-        print(f"{bcolors.OKCYAN}your deployment URL:{bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+        print(f"{Bcolors.OKCYAN}your deployment URL:{Bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
 
     elif action[0] == "revert":
         env_name = action[1]
         commit_id = action[2]
         spin(2, f'Performing revert of {commit_id}...')
         print("Revert completed!")
-        print(f"{bcolors.OKCYAN}your deployment URL:{bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+        print(f"{Bcolors.OKCYAN}your deployment URL:{Bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
 
     elif action[0] == "up":
         env_name = action[1]
@@ -718,7 +667,7 @@ def service(action):
         service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd())))
 
         if len(service_names) == 0:
-            bcolors.fail("No service directories found, try cloning a repo in here!")
+            Bcolors.fail("No service directories found, try cloning a repo in here!")
             return
 
         questions = [
@@ -931,7 +880,7 @@ def resource(action, resource_type):
         print("DGL Config updated")
 
     else:
-        bcolors.warn(f"Error, unkonwn action {action}")
+        Bcolors.warn(f"Error, unkonwn action {action}")
 
 
 
