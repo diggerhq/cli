@@ -574,40 +574,7 @@ def env(action):
         bcolors.okgreen("Infrasructure destroyed successfully")
 
     elif action[0] == "history":
-        print(f"""
-{bcolors.OKCYAN}commit b5b15d4d{bcolors.ENDC} fix monolith
-{bcolors.OKCYAN}commit 9b402a4c{bcolors.ENDC} fix downstream calls
-{bcolors.OKBLUE}infra e3f9ab4c8{bcolors.ENDC} initial infra apply
-{bcolors.OKCYAN}commit 8be5fe36{bcolors.ENDC} fix flask
-{bcolors.OKPINK}config 2cc5a979{bcolors.ENDC} update postgres_host
-""")
-    elif action[0] == "apply":
-        env_name = action[1]
-        Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
-        if env_name == "local-docker":
-            generate_docker_compose_file()
-            spin(2, 'Updating local environment ...')
-            print("Local environment generated!")
-            print("Use `dg env up local-docker` to run your stack locally")
-            return
-
-        spin(2, 'Applying infrastructure ...')
-        print("Infrastructure apply completed!")
-        print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
-
-    elif action[0] == "rollback":
-        env_name = action[1]
-        commit_id = action[2]
-        spin(2, 'Performing rollback ...')
-        print("Rollback completed!")
-        print(f"{bcolors.OKCYAN}your deployment URL:{bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
-
-    elif action[0] == "revert":
-        env_name = action[1]
-        commit_id = action[2]
-        spin(2, f'Performing revert of {commit_id}...')
-        print("Revert completed!")
-        print(f"{bcolors.OKCYAN}your deployment URL:{bcolors.ENDC} http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+        pass
 
     elif action[0] == "up":
         env_name = action[1]
@@ -672,47 +639,9 @@ def service(action):
     """
 
     if action == "create":
+        pass
 
-        questions = [
-            {
-                'type': 'list',
-                'name': 'language',
-                'message': 'What language is the service?',
-                'choices': [
-                    'Python',
-                    'Javascript (Node.js)',
-                    'Ruby',
-                ]
-            },
-            {
-                'type': 'list',
-                'name': 'server_type',
-                'message': 'Select template',
-                'choices': [
-                    'Flask',
-                    'Django',
-                ]
-            },
-            {
-                'type': 'list',
-                'name': 'server_type',
-                'message': 'Mode?',
-                'choices': [
-                    'Serverless',
-                    'Containers',
-                ]
-            },
-        ]
-
-        answers = prompt(questions)
-
-        server_type = answers["server_type"]
-
-        spin(2, "Initializing repositories ... ")
-
-        print("Service repositories created")
-
-    elif action == "add":
+    if action == "add":
         
         # service_names = get_service_names()
         service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd())))
@@ -781,87 +710,10 @@ def webapp(action):
     """
 
     if action == "create":
-
-        questions = [
-            {
-                'type': 'list',
-                'name': 'language',
-                'message': 'What language is the service?',
-                'choices': [
-                    'Python',
-                    'Javascript (Node.js)',
-                    'Ruby',
-                ]
-            },
-            {
-                'type': 'list',
-                'name': 'server_type',
-                'message': 'Select template',
-                'choices': [
-                    'Flask',
-                    'Django',
-                ]
-            },
-            
-            {
-                'type': 'list',
-                'name': 'server_type',
-                'message': 'Mode?',
-                'choices': [
-                    'Serverless',
-                    'Containers',
-                ]
-            },
-        ]
-
-        answers = prompt(questions)
-
-        server_type = answers["server_type"]
-
-        spinner = Halo(text='Initializing repositories ... ', spinner='dots')
-        spinner.start()
-        time.sleep(2)
-        spinner.stop()
-
-        print("Service repositories created")
+        pass
 
     elif action == "add":
-
-        service_names = get_service_names()
-        questions = [
-            {
-                'type': 'input',
-                'name': 'webapp_name',
-                'message': 'What is the webapp name?',
-            },
-            {
-                'type': 'list',
-                'name': 'repo',
-                'message': 'select repository',
-                'choices': service_names
-            },
-
-        ]
-
-        answers = prompt(questions)
-
-        spin(1, "Updating DGL config ... ")
-
-        repo = answers["repo"]
-        service = services()[service_names.index(repo)]
-        service_url = service["service_url"]
-        service_name = service["service_name"]
-        settings = get_project_settings()
-        settings["frontends"] = settings.get("frontends", {})
-        settings["frontends"][service_name] = {
-            "publicly_accissible": True,
-            "paths": ["/"],
-        }
-        update_digger_yaml(settings)
-        clone_repo(service_url)
-
-        print("Service added succesfully")
-
+        pass
 
 @cli.command()
 @click.argument("action")
