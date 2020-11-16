@@ -1,4 +1,5 @@
 from halo import Halo
+import time
 
 def spin(t, msg, mode='dots'):
     spinner = Halo(text=msg, spinner=mode)
