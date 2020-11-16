@@ -546,11 +546,13 @@ def project(action):
         Configure a new project
     """
     if action == "init":
+        defaultProjectName = os.path.basename(os.getcwd())
         questions = [
             {
                 'type': 'input',
                 'name': 'project_name',
                 'message': 'Enter project name',
+                'default': defaultProjectName,
                 'validate': lambda x: len(x) > 0
             },
         ]
