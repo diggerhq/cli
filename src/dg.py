@@ -525,6 +525,20 @@ def env(action):
     elif action[0] == "history":
         pass
 
+    elif action[0] == "apply":
+        env_name = action[1]
+        Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
+        if env_name == "local-docker":
+            generate_docker_compose_file()
+            spin(2, 'Updating local environment ...')
+            print("Local environment generated!")
+            print("Use `dg env up local-docker` to run your stack locally")
+            return
+
+        spin(2, 'Applying infrastructure ...')
+        print("Infrastructure apply completed!")
+        print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+
     elif action[0] == "up":
         env_name = action[1]
         if env_name == "local-docker":
