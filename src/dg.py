@@ -551,6 +551,7 @@ def project(action):
                 'type': 'input',
                 'name': 'project_name',
                 'message': 'Enter project name',
+                'validate': lambda x: len(x) > 0
             },
         ]
 
