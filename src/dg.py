@@ -370,6 +370,10 @@ def env(action):
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
                 break
+            elif jobStatus["status"] == "FAILED":
+                Bcolors.fail("Could not create infrastructure")
+                print(jobStatus["fail_message"])
+                return
             time.sleep(2)
 
         spinner.stop()
@@ -517,9 +521,13 @@ def env(action):
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
                 break
+            elif jobStatus["status"] == "FAILED":
+                Bcolors.fail("Could not destroy infrastructure")
+                print(jobStatus["fail_message"])
+                return
             time.sleep(2)
 
-        spinner.stop()        
+        spinner.stop()
         Bcolors.okgreen("Infrasructure destroyed successfully")
 
     elif action[0] == "history":
