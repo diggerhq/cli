@@ -335,7 +335,7 @@ def env(action):
 
         first_service = next(iter(settings["services"].values()))
 
-        api.create_infra({
+        response = api.create_infra({
             "aws_key": credentials["aws_key"],
             "aws_secret": credentials["aws_secret"],
             "project_name": project_name,
@@ -345,15 +345,13 @@ def env(action):
             "backend_bucket_key": f"{project_name}/project",
             "container_port": first_service["port"]
         })
-        print(response.content)
-        print(response.status_code)
         job = json.loads(response.content)
 
         # loading until infra status is complete
         spinner = Halo(text="generating infrastructure ...", spinner="dots")
         spinner.start()
         while True:
-            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/jobs/{job['job_id']}/status")
+            statusResponse = api.get_create_job_info(job['job_id'])
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
@@ -444,7 +442,7 @@ def env(action):
         awsKey = diggerProfile.get("aws_access_key_id", None)
         awsSecret = diggerProfile.get("aws_secret_access_key", None)
 
-        response = requests.post(f"{BACKEND_ENDPOINT}/api/deploy", data={
+        response = api.deploy_to_infra({
             "cluster_name": f"{project_name}-dev",
             "service_name": f"{project_name}-dev",
             "image_url": f"{docker_registry}:latest",
@@ -488,7 +486,7 @@ def env(action):
 
         first_service = next(iter(settings["services"].values()))
 
-        response = requests.post(f"{BACKEND_ENDPOINT}/api/destroy", data={
+        response = api.destroy_infra({
             "aws_key": awsKey,
             "aws_secret": awsSecret,
             "project_name": project_name,
@@ -504,7 +502,7 @@ def env(action):
         spinner = Halo(text="destroying infrastructure ...", spinner="dots")
         spinner.start()
         while True:
-            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/destroy_jobs/{job['job_id']}/status")
+            statusResponse = api.get_destroy_job_info(job['job_id'])
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
