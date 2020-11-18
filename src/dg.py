@@ -5,13 +5,11 @@ import time
 import json
 import configparser
 import random
-from environs import Env
 import requests
 import click
 from pathlib import Path
 from collections import OrderedDict
 import subprocess
-import webbrowser
 from jinja2 import Template
 from utils.pprint import Bcolors, Halo, spin
 from oyaml import load as yload, dump as ydump
@@ -26,23 +24,20 @@ except ImportError:
     import importlib_resources as pkg_resources
 
 from PyInquirer import prompt, Separator
+import api
+from auth import fetch_github_token, require_auth
 from exceptions import CouldNotDetermineDockerLocation
-
-
-def get_base_path():
-    # for pyinstaller binaries we use sys.MEIPASS otherwise fetch from __file__
-    if getattr(sys, 'frozen', False):
-        return sys._MEIPASS
-    else:
-        return os.path.abspath(os.path.dirname(__file__))
+from constants import (
+    DIGGERHOME_PATH,
+    BACKEND_ENDPOINT,
+    GITHUB_LOGIN_ENDPOINT,
+    HOMEDIR_PATH,
+    AWS_HOME_PATH,
+    AWSCREDS_FILE_PATH
+)
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
-BASE_PATH = get_base_path()
-HOMEDIR_PATH = str(Path.home())
-DIGGERHOME_PATH = os.path.join(HOMEDIR_PATH, ".digger/")
-env = Env()
-env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
-BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
+
 
 PROJECT = {}
 
@@ -127,8 +122,6 @@ def get_digger_profile(projectName, environment):
         return {}
 
 def retreive_aws_creds(projectName, environment):
-    global DIGGERHOME_PATH
-    Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
     diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
     diggerProfileName = f"{projectName}-{environment}"
     diggerconfig = configparser.ConfigParser()
@@ -260,7 +253,8 @@ def cli():
 
 
     """
-    # print("Hello from " + string)
+    Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
+    Path(AWS_HOME_PATH).mkdir(parents=True, exist_ok=True)
 
 @cli.command()
 def version():
@@ -271,18 +265,12 @@ def version():
 
 @cli.command()
 def auth():
-    webbrowser.open("file:///Users/mohamedsayed/Documents/dgr-auth/auth.html")
+    fetch_github_token()
 
-@cli.command()
-def up():
-    """
-        Spin up an environment
-    """
-    spin(2, "Generating docker-compose ...")
-    print("docker-compose.yml generated")
 
 @cli.command()
 @click.argument("action", nargs=-1, required=True)
+@require_auth
 def env(action):
     """
         Configure a new environment
@@ -347,8 +335,7 @@ def env(action):
 
         first_service = next(iter(settings["services"].values()))
 
-        
-        response = requests.post(f"{BACKEND_ENDPOINT}/api/create", data={
+        response = api.create_infra({
             "aws_key": credentials["aws_key"],
             "aws_secret": credentials["aws_secret"],
             "project_name": project_name,
@@ -358,14 +345,13 @@ def env(action):
             "backend_bucket_key": f"{project_name}/project",
             "container_port": first_service["port"]
         })
-        
         job = json.loads(response.content)
 
         # loading until infra status is complete
         spinner = Halo(text="generating infrastructure ...", spinner="dots")
         spinner.start()
         while True:
-            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/jobs/{job['job_id']}/status")
+            statusResponse = api.get_create_job_info(job['job_id'])
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
@@ -382,7 +368,7 @@ def env(action):
         spinner = Halo(text="creating aws profile ...", spinner="dots")
         profile_name = "digger-" + project_name
         spinner.start()
-        awscredsFile = f"{os.getenv('HOME')}/.aws/credentials"
+        awscredsFile = AWSCREDS_FILE_PATH
         awsconfig = configparser.ConfigParser()
         awsconfig.read(awscredsFile)
 
@@ -456,7 +442,7 @@ def env(action):
         awsKey = diggerProfile.get("aws_access_key_id", None)
         awsSecret = diggerProfile.get("aws_secret_access_key", None)
 
-        response = requests.post(f"{BACKEND_ENDPOINT}/api/deploy", data={
+        response = api.deploy_to_infra({
             "cluster_name": f"{project_name}-dev",
             "service_name": f"{project_name}-dev",
             "image_url": f"{docker_registry}:latest",
@@ -500,7 +486,7 @@ def env(action):
 
         first_service = next(iter(settings["services"].values()))
 
-        response = requests.post(f"{BACKEND_ENDPOINT}/api/destroy", data={
+        response = api.destroy_infra({
             "aws_key": awsKey,
             "aws_secret": awsSecret,
             "project_name": project_name,
@@ -516,7 +502,7 @@ def env(action):
         spinner = Halo(text="destroying infrastructure ...", spinner="dots")
         spinner.start()
         while True:
-            statusResponse = requests.get(f"{BACKEND_ENDPOINT}/api/destroy_jobs/{job['job_id']}/status")
+            statusResponse = api.get_destroy_job_info(job['job_id'])
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
@@ -563,6 +549,7 @@ def target(action):
 
 @cli.command()
 @click.argument("action")
+@require_auth
 def project(action):
     """
         Configure a new project
@@ -607,6 +594,7 @@ def project(action):
 @cli.command()
 @click.argument("action")
 # @click.argument("service_name")
+@require_auth
 def service(action):
     """
         Configure a new service
