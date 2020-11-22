@@ -7,7 +7,6 @@ from utils.pprint import Bcolors
 
 
 def do_api(method, endpoint, data, auth_token=None):
-    print(auth_token)
     response = requests.request(
         method=method, 
         url=endpoint, 
