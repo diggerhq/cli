@@ -675,10 +675,11 @@ def create(folder_name):
     settings = init_project(project_name)
     settings["project"]["docker_registry"] = contentJson["docker_registry"]
     settings["project"]["lb_url"] = contentJson["lb_url"]
+    settings["project"]["region"] = contentJson["region"]
 
     # create profile
     create_aws_profile(project_name, contentJson["access_key"], contentJson["secret_id"])
-    
+
     settings["environments"]["prod"] = {
         "target": "digger_paas",
         "lb_url": contentJson["lb_url"]
