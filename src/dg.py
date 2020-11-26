@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+import shutil
 import sys
 import time
 import json
@@ -699,6 +700,7 @@ def create(folder_name):
 
     update_digger_yaml(settings)
     clone_repo("https://github.com/diggerhq/a-nodeapp")
+    shutil.rmtree("a-nodeapp/.git")
     os.chdir("..")
     spinner.stop()
 
