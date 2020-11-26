@@ -29,6 +29,15 @@ def create_infra(data):
         auth_token=token
     )
 
+def create_infra_quick(data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/create_quick", 
+        data,
+        auth_token=token
+    )
+
 def destroy_infra(data):
     token = get_github_token()
     return do_api(
@@ -48,22 +57,12 @@ def deploy_to_infra(data):
         auth_token=token
     )
 
-def get_create_job_info(job_id):
-    token = get_github_token()    
+def get_job_info(job_id):
+    token = get_github_token()
     return do_api(
         "GET",
         f"{BACKEND_ENDPOINT}/api/jobs/{job_id}/status",
         {},
         auth_token=token
     )
-
-def get_destroy_job_info(job_id):
-    token = get_github_token()    
-    return do_api(
-        "GET",
-        f"{BACKEND_ENDPOINT}/api/destroy_jobs/{job_id}/status",
-        {},
-        auth_token=token
-    )
-
 
