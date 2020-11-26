@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+import shutil
 import sys
 import time
 import json
@@ -188,6 +189,42 @@ def generate_docker_compose_file():
     composeFile.write(composeContentRendered)
     composeFile.close()
 
+def init_project(project_name):
+
+        Path("digger-master").mkdir(parents=True, exist_ok=True)
+
+        settings = OrderedDict()
+        settings["project"] = {
+                "name": project_name
+        }
+        settings["environments"] = settings.get("environments", {})
+        settings["environments"]["local-docker"] = {
+            "target": "docker"
+        }
+        settings["services"] = {}
+
+        return settings
+
+def create_aws_profile(project_name, access_key, secret_id):
+    spinner = Halo(text="creating aws profile ...", spinner="dots")
+    profile_name = "digger-" + project_name
+    spinner.start()
+    awscredsFile = AWSCREDS_FILE_PATH
+    awsconfig = configparser.ConfigParser()
+    awsconfig.read(awscredsFile)
+
+    uniq_profile_name = profile_name
+    while uniq_profile_name in awsconfig:
+        uniq_profile_name = profile_name + str(random.randint(1,10000))
+    profile_name = uniq_profile_name
+
+    awsconfig[profile_name] = {}
+    awsconfig[profile_name]["aws_access_key_id"] = access_key
+    awsconfig[profile_name]["aws_secret_access_key"] = secret_id
+
+    with open(awscredsFile, 'w') as f:
+        awsconfig.write(f)
+    spinner.stop()
 
 def clone_repo(url):
     subprocess.Popen(["git", "clone", url]).communicate()
@@ -351,7 +388,7 @@ def env(action):
         spinner = Halo(text="generating infrastructure ...", spinner="dots")
         spinner.start()
         while True:
-            statusResponse = api.get_create_job_info(job['job_id'])
+            statusResponse = api.get_job_info(job['job_id'])
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
@@ -365,25 +402,7 @@ def env(action):
         spinner.stop()
 
         # aws profile creation
-        spinner = Halo(text="creating aws profile ...", spinner="dots")
-        profile_name = "digger-" + project_name
-        spinner.start()
-        awscredsFile = AWSCREDS_FILE_PATH
-        awsconfig = configparser.ConfigParser()
-        awsconfig.read(awscredsFile)
-
-        uniq_profile_name = profile_name
-        while uniq_profile_name in awsconfig:
-            uniq_profile_name = profile_name + str(random.randint(1,10000))
-        profile_name = uniq_profile_name
-
-        awsconfig[profile_name] = {}
-        awsconfig[profile_name]["aws_access_key_id"] = jobStatus["access_key"]
-        awsconfig[profile_name]["aws_secret_access_key"] = jobStatus["secret_id"]
-
-        with open(awscredsFile, 'w') as f:
-            awsconfig.write(f)
-        spinner.stop()
+        create_aws_profile(project_name, jobStatus["access_key"], jobStatus["secret_id"])
 
         environments = settings["environments"]
         environments[env_name] = {
@@ -502,10 +521,10 @@ def env(action):
         spinner = Halo(text="destroying infrastructure ...", spinner="dots")
         spinner.start()
         while True:
-            statusResponse = api.get_destroy_job_info(job['job_id'])
+            statusResponse = api.get_job_info(job['job_id'])
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
-            if jobStatus["status"] == "COMPLETED":
+            if jobStatus["status"] == "DESTROYED":
                 break
             elif jobStatus["status"] == "FAILED":
                 Bcolors.fail("Could not destroy infrastructure")
@@ -572,21 +591,10 @@ def project(action):
 
         spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
         spinner.start()
-        time.sleep(2)
+        settings = init_project(project_name)
+        update_digger_yaml(settings)  
         spinner.stop()
 
-        Path("digger-master").mkdir(parents=True, exist_ok=True)
-
-        settings = OrderedDict()
-        settings["project"] = {
-                "name": project_name
-        }
-        settings["environments"] = settings.get("environments", {})
-        settings["environments"]["local-docker"] = {
-            "target": "docker"
-        }
-
-        update_digger_yaml(settings)
 
         print("project initiated successfully")
 
@@ -651,6 +659,52 @@ def service(action):
         spin(1, "Updating DGL config ... ")
 
         print("Service added succesfully")
+
+@cli.command()
+@click.argument("folder_name")
+@require_auth
+def create(folder_name):
+    response = api.create_infra_quick({})
+
+    spinner = Halo(text="creating project", spinner="dots")
+    spinner.start()
+
+    contentJson = json.loads(response.content)
+    os.mkdir(folder_name)
+    os.chdir(folder_name)
+    project_name = contentJson["project_name"]
+    settings = init_project(project_name)
+    settings["project"]["docker_registry"] = contentJson["docker_registry"]
+    settings["project"]["lb_url"] = contentJson["lb_url"]
+    settings["project"]["region"] = contentJson["region"]
+
+    # create profile
+    create_aws_profile(project_name, contentJson["access_key"], contentJson["secret_id"])
+
+    settings["environments"]["prod"] = {
+        "target": "digger_paas",
+        "lb_url": contentJson["lb_url"]
+    }
+
+    anodePath = os.path.join(os.getcwd(), "a-nodeapp")
+    settings["services"]["a-nodeapp"] = {
+        "name": "a-nodeapp",
+        "path": anodePath,
+        "env_files":  [],
+        "publicly_accissible": True,
+        "type": "container",
+        "port": 8080,
+        "dockerfile":  os.path.join(anodePath, "Dockerfile"),
+        "resources": {}
+    }
+
+    update_digger_yaml(settings)
+    clone_repo("https://github.com/diggerhq/a-nodeapp")
+    shutil.rmtree("a-nodeapp/.git")
+    os.chdir("..")
+    spinner.stop()
+
+    Bcolors.okgreen("Project created successfully")
 
 
 @cli.command()
