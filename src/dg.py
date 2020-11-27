@@ -225,6 +225,7 @@ def create_aws_profile(project_name, access_key, secret_id):
     with open(awscredsFile, 'w') as f:
         awsconfig.write(f)
     spinner.stop()
+    return profile_name
 
 def clone_repo(url):
     subprocess.Popen(["git", "clone", url]).communicate()
@@ -402,7 +403,7 @@ def env(action):
         spinner.stop()
 
         # aws profile creation
-        create_aws_profile(project_name, jobStatus["access_key"], jobStatus["secret_id"])
+        profile_name = create_aws_profile(project_name, jobStatus["access_key"], jobStatus["secret_id"])
 
         environments = settings["environments"]
         environments[env_name] = {
@@ -678,12 +679,13 @@ def create(folder_name, region):
     os.chdir(folder_name)
     project_name = contentJson["project_name"]
     settings = init_project(project_name)
+    # create profile
+    profile_name = create_aws_profile(project_name, contentJson["access_key"], contentJson["secret_id"])
+
     settings["project"]["docker_registry"] = contentJson["docker_registry"]
     settings["project"]["lb_url"] = contentJson["lb_url"]
     settings["project"]["region"] = contentJson["region"]
-
-    # create profile
-    create_aws_profile(project_name, contentJson["access_key"], contentJson["secret_id"])
+    settings["project"]["aws_profile"] = profile_name
 
     settings["environments"]["prod"] = {
         "target": "digger_paas",
@@ -709,7 +711,7 @@ def create(folder_name, region):
     spinner.stop()
 
     Bcolors.okgreen("Project created successfully")
-
+    print(f"Your site is hosted on the following url: {contentJson['lb_url']}")
 
 @cli.command()
 @click.argument("action")
