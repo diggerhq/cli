@@ -662,9 +662,13 @@ def service(action):
 
 @cli.command()
 @click.argument("folder_name")
+@click.option("--region", default="us-east-1", help="Stack region")
 @require_auth
-def create(folder_name):
-    response = api.create_infra_quick({})
+def create(folder_name, region):
+    if os.path.exists(folder_name):
+        Bcolors.fail("Error: folder exists")
+        return
+    response = api.create_infra_quick({"region": region})
 
     spinner = Halo(text="creating project", spinner="dots")
     spinner.start()
