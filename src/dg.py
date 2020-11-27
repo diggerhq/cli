@@ -709,7 +709,7 @@ def create(folder_name, region):
     spinner.stop()
 
     Bcolors.okgreen("Project created successfully")
-
+    print(f"Your site is hosted on the following url: {contentJson['lb_url']}")
 
 @cli.command()
 @click.argument("action")
