@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+import threading
 import shutil
 import sys
 import time
@@ -276,6 +277,16 @@ def modes():
         'Containers',
     ]
 
+def report_async(payload, settings=None, status="start"):
+    if settings is not None:
+        payload.update({
+            "settings": json.dumps(settings),
+        })
+    payload.update({"status": status})
+    x = threading.Thread(target=api.cli_report, args=(payload,))
+    x.start()
+
+
 @click.group()
 def cli():
     """
@@ -303,7 +314,9 @@ def version():
 
 @cli.command()
 def auth():
+    report_async({"command": f"dg auth"}, status="start")    
     fetch_github_token()
+    report_async({"command": f"dg auth"}, status="complete")
 
 
 @cli.command()
@@ -315,15 +328,28 @@ def env(action):
     """
     if action[0] == "list":
         settings = get_project_settings()
+
+        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+
         spin(1, "Loading environment list ...")
         for env in settings["environments"].keys():
             print(f">> {env}")
+
+        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
     elif action[0] == "create":
         targets = get_targets()
         env_name = action[1]
         settings = get_project_settings()
+        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         project_name = settings["project"]["name"]
+
+        reportPayload = {
+            "command": "dg env create",
+            "action": action,
+            "settings": settings
+        }
 
         questions = [
             {
@@ -420,11 +446,16 @@ def env(action):
 
         print("Deplyment successful!")
         print(f"your deployment URL: http://{jobStatus['lb_url']}")
-    
+        
+        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+        
     elif action[0] == "build":
         env_name = action[1]
-
         settings = get_project_settings()
+        reportPayload = {
+
+        }
+        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         project_name = settings["project"]["name"]
         docker_registry = settings["project"]["docker_registry"]
         # for service in settings["services"]:
@@ -436,10 +467,13 @@ def env(action):
         subprocess.Popen(["docker", "build", "-t", project_name, f"{service_name}/"]).communicate()
 
         subprocess.Popen(["docker", "tag", f"{project_name}:latest", f"{docker_registry}:latest"]).communicate()
+        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
     elif action[0] == "push":
         env_name = action[1]
-        settings = get_project_settings()     
+        settings = get_project_settings()    
+        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         profile_name = settings["project"]["aws_profile"]
         docker_registry = settings["project"]["docker_registry"]
         registry_endpoint = docker_registry.split("/")[0]
@@ -447,11 +481,12 @@ def env(action):
         docker_auth = proc.stdout.decode("utf-8")
         subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
         subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
+        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
     elif action[0] == "deploy":
         env_name = action[1]
-
         settings = get_project_settings()
+        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         target = settings["environments"][env_name]["target"]
         lb_url = settings["environments"][env_name]["lb_url"]
         docker_registry = settings["project"]["docker_registry"]
@@ -477,10 +512,11 @@ def env(action):
 
         print(output["msg"])
         print(f"your deployment URL: http://{lb_url}")
+        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
     elif action[0] == "destroy":
-
+        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         env_name = action[1]
 
 
@@ -535,11 +571,13 @@ def env(action):
 
         spinner.stop()
         Bcolors.okgreen("Infrasructure destroyed successfully")
+        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
     elif action[0] == "history":
         pass
 
     elif action[0] == "apply":
+        report_async({"command": f"dg env {action}"}, status="start")
         env_name = action[1]
         Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
         if env_name == "local-docker":
@@ -552,11 +590,14 @@ def env(action):
         spin(2, 'Applying infrastructure ...')
         print("Infrastructure apply completed!")
         print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
+        report_async({"command": f"dg env {action}"}, status="complete")
 
     elif action[0] == "up":
+        report_async({"command": f"dg env {action}"}, status="start")
         env_name = action[1]
         if env_name == "local-docker":
             subprocess.Popen(["docker-compose", "-f", "digger-master/local-docker/docker-compose.yml", "up"]).communicate()
+        report_async({"command": f"dg env {action}"}, status="complete")
 
 
 @cli.command()
@@ -575,6 +616,8 @@ def project(action):
         Configure a new project
     """
     if action == "init":
+        report_async({"command": f"dg project init"}, status="start")
+
         defaultProjectName = os.path.basename(os.getcwd())
         questions = [
             {
@@ -598,6 +641,7 @@ def project(action):
 
 
         print("project initiated successfully")
+        report_async({"command": f"dg project init"}, settings=settings, status="copmlete")
 
 
 @cli.command()
@@ -613,7 +657,7 @@ def service(action):
         pass
 
     if action == "add":
-        
+        report_async({"command": f"dg service add"}, status="complete")
         # service_names = get_service_names()
         service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd())))
 
@@ -660,6 +704,7 @@ def service(action):
         spin(1, "Updating DGL config ... ")
 
         print("Service added succesfully")
+        report_async({"command": f"dg service add"}, settings=settings, status="complete")
 
 @cli.command()
 @click.argument("folder_name")
@@ -670,6 +715,7 @@ def create(folder_name, region):
         Bcolors.fail("Error: folder exists")
         return
     response = api.create_infra_quick({"region": region})
+    report_async({"command": f"dg create"}, status="start")
 
     spinner = Halo(text="creating project", spinner="dots")
     spinner.start()
@@ -712,6 +758,7 @@ def create(folder_name, region):
 
     Bcolors.okgreen("Project created successfully")
     print(f"Your site is hosted on the following url: {contentJson['lb_url']}")
+    report_async({"command": f"dg create"}, settings=settings, status="complete")
 
 @cli.command()
 @click.argument("action")
@@ -748,6 +795,8 @@ def resource(action, resource_type):
     if action == "create":
 
         settings = get_project_settings()
+        report_async({"command": f"dg resource create"}, settings=settings, status="start")
+
         service_names = settings["services"].keys()
 
         questions = [
@@ -803,6 +852,8 @@ def resource(action, resource_type):
         spin(2, "updating configuration ...")
 
         print("DGL Config updated")
+        report_async({"command": f"dg resource create"}, settings=settings, status="complete")
+
 
     else:
         Bcolors.warn(f"Error, unkonwn action {action}")
