@@ -345,12 +345,6 @@ def env(action):
         report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         project_name = settings["project"]["name"]
 
-        reportPayload = {
-            "command": "dg env create",
-            "action": action,
-            "settings": settings
-        }
-
         questions = [
             {
                 'type': 'list',
@@ -452,9 +446,6 @@ def env(action):
     elif action[0] == "build":
         env_name = action[1]
         settings = get_project_settings()
-        reportPayload = {
-
-        }
         report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         project_name = settings["project"]["name"]
         docker_registry = settings["project"]["docker_registry"]
