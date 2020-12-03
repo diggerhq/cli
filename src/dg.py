@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+from datetime import datetime
 import threading
 import shutil
 import sys
@@ -759,6 +760,20 @@ def trigger(action, trigger_type):
         Configure a trigger for a service
     """
 
+@cli.command()
+@click.argument("service_name")
+# @click.argument("webapp_name")
+def logs(service_name):
+    """
+        Configure a web application (frontend)
+    """
+    settings = get_project_settings()
+    projectName = settings["project"]["name"]
+    response = api.get_logs(projectName)
+    content = json.loads(response.content)
+    for record in content:
+        time = datetime.fromtimestamp(record["timestamp"]/1000).strftime("%Y-%m-%d %H:%M")
+        print(f'[[{time}]]', record["message"])
 
 
 @cli.command()
