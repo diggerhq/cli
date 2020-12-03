@@ -66,6 +66,15 @@ def get_job_info(job_id):
         auth_token=token
     )
 
+def get_logs(projectName):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/logs",
+        {"project_name": projectName},
+        auth_token=token
+    )
+
 def cli_report(payload):
     token = get_github_token()
     return do_api(
