@@ -315,7 +315,7 @@ def version():
 
 @cli.command()
 def auth():
-    report_async({"command": f"dg auth"}, status="start")    
+    # report_async({"command": f"dg auth"}, status="start")    
     fetch_github_token()
     report_async({"command": f"dg auth"}, status="complete")
 
