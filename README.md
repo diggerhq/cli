@@ -24,3 +24,9 @@
 -  docker build -t dg-release-debian -f docker/Dockerfile-release.debian .
 - docker run -it -v $PWD/dist:/dist dg-release-debian
 - The resulting binary will be in the dist/ folder, you can modify this by changing the first argument to `-v`
+
+## With github actions:
+Any tag which starts with vxxx will be built for linux and malk
+A corresponding release will be created. In the releases tab https://github.com/diggerhq/cli/releases
+You can download the release and upload to a pulic s3 bucket.
+Update [homebrew](https://github.com/diggerhq/homebrew-tap/blob/master/Formula/dg.rb) and [notion page](https://www.notion.so/Quick-Start-deploy-a-service-d55adaf6bcb84399a3ab0633b19a2a45) with latest links
