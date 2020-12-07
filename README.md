@@ -28,5 +28,5 @@
 ### With github actions:
 Any tag which starts with vxxx will be built for linux and malk
 A corresponding release will be created. In the releases tab https://github.com/diggerhq/cli/releases
-You can download the release and upload to a pulic s3 bucket.
+You can download the release and upload to a pulic s3 bucket (we deploy to digger-releases/linux and digger-releases/darwin).
 Update [homebrew](https://github.com/diggerhq/homebrew-tap/blob/master/Formula/dg.rb) and [notion page](https://www.notion.so/Quick-Start-deploy-a-service-d55adaf6bcb84399a3ab0633b19a2a45) with latest links
