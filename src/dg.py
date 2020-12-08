@@ -649,7 +649,7 @@ def service(action):
         pass
 
     if action == "add":
-        report_async({"command": f"dg service add"}, status="complete")
+        report_async({"command": f"dg service add"}, status="start")
         # service_names = get_service_names()
         service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd())))
 
