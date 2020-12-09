@@ -508,7 +508,7 @@ def env(action):
 
 
     elif action[0] == "destroy":
-        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+        report_async({"command": f"dg env {action}"}, status="start")
         env_name = action[1]
 
 
