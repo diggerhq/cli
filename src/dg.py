@@ -402,7 +402,8 @@ def env(action):
             "backend_bucket_name": "digger-terraform-states",
             "backend_bucket_region": "eu-west-1",
             "backend_bucket_key": f"{project_name}/project",
-            "container_port": first_service["port"]
+            "container_port": first_service["port"],
+            "health_check": first_service.get("health_check", "/")
         })
         job = json.loads(response.content)
 
@@ -687,6 +688,7 @@ def service(action):
             "publicly_accissible": True,
             "type": "container",
             "port": 8080,
+            "health_check": "/",
             "dockerfile": dockerfile_path,
             "resources": {},
             "dependencies": {},
