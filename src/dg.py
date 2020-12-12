@@ -394,7 +394,7 @@ def env(action):
 
         first_service = next(iter(settings["services"].values()))
 
-        response = api.create_infra({
+        create_infra_api = lambda: api.create_infra({
             "aws_key": credentials["aws_key"],
             "aws_secret": credentials["aws_secret"],
             "project_name": project_name,
@@ -405,6 +405,7 @@ def env(action):
             "container_port": first_service["port"],
             "health_check": first_service.get("health_check", "/")
         })
+        response = create_infra_api()
         job = json.loads(response.content)
 
         # loading until infra status is complete
@@ -415,7 +416,12 @@ def env(action):
             print(statusResponse.content)
             jobStatus = json.loads(statusResponse.content)
             if jobStatus["status"] == "COMPLETED":
-                break
+                # this is a hack to fix https://github.com/diggerhq/cli-backend/issues/8
+                if jobStatus["docker_registry"] == "":
+                    response = create_infra_api()
+                    job = json.loads(response.content)
+                else:
+                    break
             elif jobStatus["status"] == "FAILED":
                 Bcolors.fail("Could not create infrastructure")
                 print(jobStatus["fail_message"])
