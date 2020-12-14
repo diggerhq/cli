@@ -28,6 +28,7 @@ except ImportError:
 
 from PyInquirer import prompt, Separator
 import api
+from fileio import download_terraform_files
 from auth import fetch_github_token, require_auth
 from exceptions import CouldNotDetermineDockerLocation
 from constants import (
@@ -409,7 +410,7 @@ def env(action):
         job = json.loads(response.content)
 
         # loading until infra status is complete
-        spinner = Halo(text="generating infrastructure ...", spinner="dots")
+        spinner = Halo(text="creating infrastructure ...", spinner="dots")
         spinner.start()
         while True:
             statusResponse = api.get_job_info(job['job_id'])
@@ -444,12 +445,35 @@ def env(action):
         update_digger_yaml(settings)
 
         # create a directory for this environment (for environments and secrets)
-        Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
+        env_path = f"digger-master/{env_name}"
+        tform_path = f"{env_path}/terraform"   
+        Path(env_path).mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(tform_path)        
+
+        # tform generation
+        spinner = Halo(text="Updating terraform ...", spinner="dots")
+        spinner.start()
+        download_terraform_files(project_name, tform_path)
+        spinner.stop()
 
         print("Deplyment successful!")
         print(f"your deployment URL: http://{jobStatus['lb_url']}")
-        
+
         report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+    
+    elif action[0] == "sync-tform":
+        env_name = action[1]
+        settings = get_project_settings()
+        project_name = settings["project"]["name"]
+        env_path = f"digger-master/{env_name}"
+        tform_path = f"{env_path}/terraform"
+        shutil.rmtree(tform_path) 
+        # tform generation
+        spinner = Halo(text="Updating terraform ...", spinner="dots")
+        spinner.start()
+        download_terraform_files(project_name, tform_path)
+        spinner.stop()
+        Bcolors.okgreen("Terraform updated successfully")        
         
     elif action[0] == "build":
         env_name = action[1]

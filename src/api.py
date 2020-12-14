@@ -75,6 +75,24 @@ def get_logs(projectName):
         auth_token=token
     )
 
+def download_terraform_async(projectName):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/download_terraform",
+        {"project_name": projectName},
+        auth_token=token
+    )
+
+def terraform_generate_status(terraformJobId):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/terraform_s3_jobs/{terraformJobId}/status",
+        {},
+        auth_token=token
+    )
+
 def cli_report(payload):
     token = get_github_token()
     return do_api(
