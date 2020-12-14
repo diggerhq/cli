@@ -37,7 +37,8 @@ from constants import (
     GITHUB_LOGIN_ENDPOINT,
     HOMEDIR_PATH,
     AWS_HOME_PATH,
-    AWSCREDS_FILE_PATH
+    AWSCREDS_FILE_PATH,
+    AWS_REGIONS,
 )
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
@@ -354,11 +355,19 @@ def env(action):
                 'message': 'Select target',
                 'choices': targets.keys()
             },
+            {
+                'type': 'list',
+                'name': 'region',
+                'message': 'Select region',
+                'choices': AWS_REGIONS,
+                'default': "us-east-1"
+            },
         ]
 
         answers = prompt(questions)
 
         target = answers["target"]
+        region = answers["region"]
 
         if target not in ["AWS ECS Fargate", "Digger Paas"]:
             Bcolors.fail("This option is currently unsupported! Please try again")
@@ -404,7 +413,8 @@ def env(action):
             "backend_bucket_region": "eu-west-1",
             "backend_bucket_key": f"{project_name}/project",
             "container_port": first_service["port"],
-            "health_check": first_service.get("health_check", "/")
+            "health_check": first_service.get("health_check", "/"),
+            "region": region,
         })
         response = create_infra_api()
         job = json.loads(response.content)
@@ -437,6 +447,7 @@ def env(action):
         environments = settings["environments"]
         environments[env_name] = {
             "target": targets[target],
+            "region": region,
             "lb_url": jobStatus["lb_url"],
         }
         # TODO: profile should be stored in environment not root file
@@ -448,6 +459,7 @@ def env(action):
         env_path = f"digger-master/{env_name}"
         tform_path = f"{env_path}/terraform"   
         Path(env_path).mkdir(parents=True, exist_ok=True)
+        Path(tform_path).mkdir(parents=True, exist_ok=True)
         shutil.rmtree(tform_path)        
 
         # tform generation
