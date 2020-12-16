@@ -48,43 +48,43 @@ class TestService(ClickTestMixin, unittest.TestCase):
         result = self._invoke_click_command(["service", "create"])
         assert not result.exception
 
-
+@patch("dg.dg.get_project_settings")
 class TestEnv(ClickTestMixin, unittest.TestCase):
 
-    def test_env_list(self):
+    def test_env_list(self, get_project_settings):
         result = self._invoke_click_command(["env", "list"])
         assert not result.exception
 
-    def test_env_create(self):
-        result = self._invoke_click_command(["env", "create"])
+    def test_env_create(self, get_project_settings):
+        result = self._invoke_click_command(["env", "create", "prod"])
         assert not result.exception
 
-    def test_env_create(self):
-        result = self._invoke_click_command(["env", "sync-tform"])
+    def test_env_create(self, get_project_settings):
+        result = self._invoke_click_command(["env", "sync-tform", "prod"])
         assert not result.exception
 
-    def test_env_create(self):
+    def test_env_create(self, get_project_settings):
         result = self._invoke_click_command(["env", "build"])
         assert not result.exception
 
-    def test_env_create(self):
+    def test_env_create(self, get_project_settings):
         result = self._invoke_click_command(["env", "push"])
         assert not result.exception
 
-    def test_env_create(self):
+    def test_env_create(self, get_project_settings):
         result = self._invoke_click_command(["env", "deploy"])
         assert not result.exception
 
-    def test_env_create(self):
+    def test_env_create(self, get_project_settings):
         result = self._invoke_click_command(["env", "destroy"])
         assert not result.exception
 
-    def test_env_create(self):
+    def test_env_create(self, get_project_settings):
         result = self._invoke_click_command(["env", "history"])
         assert not result.exception
 
-    def test_env_create(self):
-        result = self._invoke_click_command(["env", "apply"])
+    def test_env_create(self, get_project_settings):
+        result = self._invoke_click_command(["env", "apply", "prod"])
         assert not result.exception
 
 
