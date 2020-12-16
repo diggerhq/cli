@@ -4,7 +4,9 @@ from setuptools import setup
 
 setup(
     name='Digger CLI',
-    package_dir={'': 'src'},
+    package_dir={
+        'dg': 'dg'
+    },
     version="1.0",
     py_modules=["dg",],
     install_requires=[
@@ -12,6 +14,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        dg=dg:cli
+        dg=dg.dg:cli
     '''
 )

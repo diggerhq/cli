@@ -14,7 +14,7 @@ from pathlib import Path
 from collections import OrderedDict
 import subprocess
 from jinja2 import Template
-from utils.pprint import Bcolors, Halo, spin
+from .utils.pprint import Bcolors, Halo, spin
 from oyaml import load as yload, dump as ydump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -27,11 +27,11 @@ except ImportError:
     import importlib_resources as pkg_resources
 
 from PyInquirer import prompt, Separator
-import api
-from fileio import download_terraform_files
-from auth import fetch_github_token, require_auth
-from exceptions import CouldNotDetermineDockerLocation
-from constants import (
+from . import api
+from .fileio import download_terraform_files
+from .auth import fetch_github_token, require_auth
+from .exceptions import CouldNotDetermineDockerLocation
+from .constants import (
     DIGGERHOME_PATH,
     BACKEND_ENDPOINT,
     GITHUB_LOGIN_ENDPOINT,
@@ -641,8 +641,7 @@ def target(action):
     """
         Configure a new target
     """
-
-
+    
 @cli.command()
 @click.argument("action")
 @require_auth
@@ -796,13 +795,6 @@ def create(folder_name, region):
     print(f"Your site is hosted on the following url: {contentJson['lb_url']}")
     report_async({"command": f"dg create"}, settings=settings, status="complete")
 
-@cli.command()
-@click.argument("action")
-@click.argument("trigger_type")
-def trigger(action, trigger_type):
-    """
-        Configure a trigger for a service
-    """
 
 @cli.command()
 @click.argument("service_name")

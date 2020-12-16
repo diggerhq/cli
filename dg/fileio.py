@@ -3,7 +3,7 @@ import json
 import zipfile
 import requests
 import tempfile
-import api
+from . import api
 
 
 def download_file(url, path):
