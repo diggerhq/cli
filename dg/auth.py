@@ -3,8 +3,8 @@ import webbrowser
 import click
 import requests
 from functools import update_wrapper
-from utils.pprint import Bcolors
-from constants import (
+from .utils.pprint import Bcolors
+from .constants import (
     GITHUB_LOGIN_ENDPOINT,
     DIGGERTOKEN_FILE_PATH
 )

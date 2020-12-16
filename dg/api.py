@@ -1,9 +1,9 @@
 import requests
 from requests import Request, Session
-from auth import get_github_token
-from constants import BACKEND_ENDPOINT
-from exceptions import ApiRequestException
-from utils.pprint import Bcolors
+from .auth import get_github_token
+from .constants import BACKEND_ENDPOINT
+from .exceptions import ApiRequestException
+from .utils.pprint import Bcolors
 
 
 def do_api(method, endpoint, data, auth_token=None):

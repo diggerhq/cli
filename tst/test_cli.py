@@ -2,8 +2,8 @@ import unittest
 import os
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
-import dg
-from dg import cli
+from dg import dg
+from dg.dg import cli
 
 # mocking objects
 dg.api = MagicMock()
@@ -72,13 +72,13 @@ class TestCreate(ClickTestMixin, unittest.TestCase):
         assert not result.exception
 
 class TestLogs(ClickTestMixin, unittest.TestCase):
-    @patch("dg.get_project_settings")
+    @patch("dg.dg.get_project_settings")
     def test_logs(self, get_project_settings):
         result = self._invoke_click_command(["logs", "serviceName"])
         assert not result.exception
 
 
-@patch("dg.get_project_settings")
+@patch("dg.dg.get_project_settings")
 class TestWebapp(ClickTestMixin, unittest.TestCase):
 
     def test_logs(self, get_project_settings):
@@ -89,7 +89,7 @@ class TestWebapp(ClickTestMixin, unittest.TestCase):
         result = self._invoke_click_command(["webapp", "add"])
         assert not result.exception
 
-@patch("dg.get_project_settings")
+@patch("dg.dg.get_project_settings")
 class TestResource(ClickTestMixin, unittest.TestCase):
 
     def test_resouce_create(self, get_project_settings):
