@@ -35,7 +35,7 @@ class TestProject(ClickTestMixin, unittest.TestCase):
     def test_project_init(self):
         result = self._invoke_click_command(["project", "init"])
         assert not result.exception
-        assert result.output == 'project initiated successfully\n'
+        
 
 class TestService(ClickTestMixin, unittest.TestCase):
 
