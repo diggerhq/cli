@@ -8,6 +8,7 @@ from dg.dg import cli
 # mocking objects
 dg.api = MagicMock()
 dg.auth.require_auth = MagicMock()
+dg.fetch_github_token = MagicMock()
 dg.prompt = MagicMock()
 dg.report_async = MagicMock()
 dg.update_digger_yaml = MagicMock()
@@ -35,21 +36,6 @@ class TestProject(ClickTestMixin, unittest.TestCase):
     def test_project_init(self):
         result = self._invoke_click_command(["project", "init"])
         assert not result.exception
-        
-
-class TestService(ClickTestMixin, unittest.TestCase):
-
-    def test_service_add(self):
-        result = self._invoke_click_command(["service", "add"])
-        assert not result.exception
-
-    def test_service_create(self):
-        result = self._invoke_click_command(["service", "create"])
-        assert not result.exception
-
-    def test_service_create(self):
-        result = self._invoke_click_command(["service", "create"])
-        assert not result.exception
 
 
 class TestService(ClickTestMixin, unittest.TestCase):
@@ -62,9 +48,12 @@ class TestService(ClickTestMixin, unittest.TestCase):
         result = self._invoke_click_command(["service", "create"])
         assert not result.exception
 
-    def test_service_create(self):
-        result = self._invoke_click_command(["service", "create"])
+
+class TestAuth(ClickTestMixin, unittest.TestCase):
+    def test_auth(self):
+        result = self._invoke_click_command(["auth"])
         assert not result.exception
+
 
 class TestCreate(ClickTestMixin, unittest.TestCase):
     def test_create(self):
