@@ -1,0 +1,102 @@
+import unittest
+import os
+from unittest.mock import patch, MagicMock
+from click.testing import CliRunner
+import dg
+from dg import cli
+
+# mocking objects
+dg.api = MagicMock()
+dg.auth.require_auth = MagicMock()
+dg.prompt = MagicMock()
+dg.report_async = MagicMock()
+dg.update_digger_yaml = MagicMock()
+dg.json = MagicMock()
+dg.create_aws_profile = MagicMock()
+
+
+class ClickTestMixin():
+    def setUp(self):
+        self.runner = CliRunner()
+
+    def _invoke_click_command(self, command):
+        self.runner = CliRunner()
+        with self.runner.isolated_filesystem():
+            result = self.runner.invoke(
+                cli,
+                command,
+                catch_exceptions=False
+            )
+        return result
+
+
+class TestProject(ClickTestMixin, unittest.TestCase):
+
+    def test_project_init(self):
+        result = self._invoke_click_command(["project", "init"])
+        assert not result.exception
+        assert result.output == 'project initiated successfully\n'
+
+class TestService(ClickTestMixin, unittest.TestCase):
+
+    def test_service_add(self):
+        result = self._invoke_click_command(["service", "add"])
+        assert not result.exception
+
+    def test_service_create(self):
+        result = self._invoke_click_command(["service", "create"])
+        assert not result.exception
+
+    def test_service_create(self):
+        result = self._invoke_click_command(["service", "create"])
+        assert not result.exception
+
+
+class TestService(ClickTestMixin, unittest.TestCase):
+
+    def test_service_add(self):
+        result = self._invoke_click_command(["service", "add"])
+        assert not result.exception
+
+    def test_service_create(self):
+        result = self._invoke_click_command(["service", "create"])
+        assert not result.exception
+
+    def test_service_create(self):
+        result = self._invoke_click_command(["service", "create"])
+        assert not result.exception
+
+class TestCreate(ClickTestMixin, unittest.TestCase):
+    def test_create(self):
+        result = self._invoke_click_command(["create", "myfolder"])
+        assert not result.exception
+
+class TestLogs(ClickTestMixin, unittest.TestCase):
+    @patch("dg.get_project_settings")
+    def test_logs(self, get_project_settings):
+        result = self._invoke_click_command(["logs", "serviceName"])
+        assert not result.exception
+
+
+@patch("dg.get_project_settings")
+class TestWebapp(ClickTestMixin, unittest.TestCase):
+
+    def test_logs(self, get_project_settings):
+        result = self._invoke_click_command(["webapp", "create"])
+        assert not result.exception
+
+    def test_logs(self, get_project_settings):
+        result = self._invoke_click_command(["webapp", "add"])
+        assert not result.exception
+
+@patch("dg.get_project_settings")
+class TestResource(ClickTestMixin, unittest.TestCase):
+
+    def test_resouce_create(self, get_project_settings):
+        result = self._invoke_click_command(["resource", "create", "database"])
+        assert not result.exception
+
+
+
+if __name__ == '__main__':
+    unittest.main()

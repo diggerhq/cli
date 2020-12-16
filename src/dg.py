@@ -641,8 +641,7 @@ def target(action):
     """
         Configure a new target
     """
-
-
+    
 @cli.command()
 @click.argument("action")
 @require_auth
@@ -796,13 +795,6 @@ def create(folder_name, region):
     print(f"Your site is hosted on the following url: {contentJson['lb_url']}")
     report_async({"command": f"dg create"}, settings=settings, status="complete")
 
-@cli.command()
-@click.argument("action")
-@click.argument("trigger_type")
-def trigger(action, trigger_type):
-    """
-        Configure a trigger for a service
-    """
 
 @cli.command()
 @click.argument("service_name")
