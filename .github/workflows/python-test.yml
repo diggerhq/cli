@@ -9,4 +9,4 @@ jobs:
       - name: Test
         uses: onichandame/python-test-action@master
         with:
-          deps_list: 'src/requirements.txt'
+          deps_list: 'requirements.txt'
