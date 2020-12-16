@@ -49,6 +49,45 @@ class TestService(ClickTestMixin, unittest.TestCase):
         assert not result.exception
 
 
+class TestEnv(ClickTestMixin, unittest.TestCase):
+
+    def test_env_list(self):
+        result = self._invoke_click_command(["env", "list"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "create"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "sync-tform"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "build"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "push"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "deploy"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "destroy"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "history"])
+        assert not result.exception
+
+    def test_env_create(self):
+        result = self._invoke_click_command(["env", "apply"])
+        assert not result.exception
+
+
 class TestAuth(ClickTestMixin, unittest.TestCase):
     def test_auth(self):
         result = self._invoke_click_command(["auth"])
