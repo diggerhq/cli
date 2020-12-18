@@ -408,6 +408,7 @@ def env(action):
             "aws_key": credentials["aws_key"],
             "aws_secret": credentials["aws_secret"],
             "project_name": project_name,
+            "environment": env_name,
             "project_type": targets[target],
             "backend_bucket_name": "digger-terraform-states",
             "backend_bucket_region": "eu-west-1",
@@ -449,15 +450,15 @@ def env(action):
             "target": targets[target],
             "region": region,
             "lb_url": jobStatus["lb_url"],
+            "docker_registry": jobStatus["docker_registry"],
+            "aws_profile": profile_name,
         }
-        # TODO: profile should be stored in environment not root file
-        settings["project"]["aws_profile"] = profile_name
-        settings["project"]["docker_registry"] = jobStatus["docker_registry"]
+
         update_digger_yaml(settings)
 
         # create a directory for this environment (for environments and secrets)
         env_path = f"digger-master/{env_name}"
-        tform_path = f"{env_path}/terraform"   
+        tform_path = f"{env_path}/terraform"
         Path(env_path).mkdir(parents=True, exist_ok=True)
         Path(tform_path).mkdir(parents=True, exist_ok=True)
         shutil.rmtree(tform_path)        
@@ -465,7 +466,7 @@ def env(action):
         # tform generation
         spinner = Halo(text="Updating terraform ...", spinner="dots")
         spinner.start()
-        download_terraform_files(project_name, tform_path)
+        download_terraform_files(project_name, env_name, tform_path)
         spinner.stop()
 
         print("Deplyment successful!")
@@ -479,11 +480,13 @@ def env(action):
         project_name = settings["project"]["name"]
         env_path = f"digger-master/{env_name}"
         tform_path = f"{env_path}/terraform"
+        Path(env_path).mkdir(parents=True, exist_ok=True)
+        Path(tform_path).mkdir(parents=True, exist_ok=True)
         shutil.rmtree(tform_path) 
         # tform generation
         spinner = Halo(text="Updating terraform ...", spinner="dots")
         spinner.start()
-        download_terraform_files(project_name, tform_path)
+        download_terraform_files(project_name, env_name, tform_path)
         spinner.stop()
         Bcolors.okgreen("Terraform updated successfully")        
         
@@ -492,7 +495,7 @@ def env(action):
         settings = get_project_settings()
         report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         project_name = settings["project"]["name"]
-        docker_registry = settings["project"]["docker_registry"]
+        docker_registry = settings["environments"][env_name]["docker_registry"]
         # for service in settings["services"]:
         #     service_name = service["name"]
         
@@ -509,8 +512,8 @@ def env(action):
         env_name = action[1]
         settings = get_project_settings()    
         report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-        profile_name = settings["project"]["aws_profile"]
-        docker_registry = settings["project"]["docker_registry"]
+        profile_name = settings["environments"][env_name]["aws_profile"]
+        docker_registry = settings["environments"][env_name]["docker_registry"]
         registry_endpoint = docker_registry.split("/")[0]
         proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], capture_output=True)
         docker_auth = proc.stdout.decode("utf-8")
@@ -524,7 +527,7 @@ def env(action):
         report_async({"command": f"dg env {action}"}, settings=settings, status="start")
         target = settings["environments"][env_name]["target"]
         lb_url = settings["environments"][env_name]["lb_url"]
-        docker_registry = settings["project"]["docker_registry"]
+        docker_registry = settings["environments"][env_name]["docker_registry"]
         first_service = next(iter(settings["services"].values()))
         project_name = settings["project"]["name"]
 
@@ -533,8 +536,8 @@ def env(action):
         awsSecret = diggerProfile.get("aws_secret_access_key", None)
 
         response = api.deploy_to_infra({
-            "cluster_name": f"{project_name}-dev",
-            "service_name": f"{project_name}-dev",
+            "cluster_name": f"{project_name}-{env_name}",
+            "service_name": f"{project_name}-{env_name}",
             "image_url": f"{docker_registry}:latest",
             "aws_key": awsKey,
             "aws_secret": awsSecret
@@ -581,9 +584,9 @@ def env(action):
             "aws_key": awsKey,
             "aws_secret": awsSecret,
             "project_name": project_name,
+            "environment": env_name,
             "backend_bucket_name": "digger-terraform-states",
             "backend_bucket_region": "eu-west-1",
-            "backend_bucket_key": f"{project_name}/project",
             "container_port": first_service["port"]
         })
         
@@ -763,14 +766,15 @@ def create(folder_name, region):
     # create profile
     profile_name = create_aws_profile(project_name, contentJson["access_key"], contentJson["secret_id"])
 
-    settings["project"]["docker_registry"] = contentJson["docker_registry"]
     settings["project"]["lb_url"] = contentJson["lb_url"]
     settings["project"]["region"] = contentJson["region"]
     settings["project"]["aws_profile"] = profile_name
 
     settings["environments"]["prod"] = {
         "target": "digger_paas",
-        "lb_url": contentJson["lb_url"]
+        "lb_url": contentJson["lb_url"],
+        "docker_registry": contentJson["docker_registry"],
+        "aws_profile": profile_name,
     }
 
     anodePath = os.path.join(os.getcwd(), "a-nodeapp")
