@@ -1,6 +1,7 @@
 import os
 import json
 import zipfile
+import time
 import requests
 import tempfile
 from . import api
@@ -17,8 +18,8 @@ def download_file(url, path):
                 #if chunk:
                 f.write(chunk)
 
-def download_terraform_files(projectName, destinationDir):
-    response = api.download_terraform_async(projectName)
+def download_terraform_files(projectName, environment, destinationDir):
+    response = api.download_terraform_async(projectName, environment)
     job = json.loads(response.content)
 
     while True:
@@ -29,6 +30,8 @@ def download_terraform_files(projectName, destinationDir):
 
         if status == "COMPLETED":
             break
+
+        time.sleep(2)
 
     fileUrl = jobStatus["file_url"]
 
