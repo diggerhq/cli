@@ -31,6 +31,7 @@ from . import api
 from .fileio import download_terraform_files
 from .auth import fetch_github_token, require_auth
 from .exceptions import CouldNotDetermineDockerLocation
+from ._version import __version__
 from .constants import (
     DIGGERHOME_PATH,
     BACKEND_ENDPOINT,
@@ -289,8 +290,14 @@ def report_async(payload, settings=None, status="start"):
     x = threading.Thread(target=api.cli_report, args=(payload,))
     x.start()
 
+def print_version(ctx, param, value):
+    if value == True:
+        click.echo(f"dg cli v{__version__}")
+        ctx.exit()
 
 @click.group()
+@click.option('--version', is_flag=True, is_eager=True,
+                expose_value=False, callback=print_version)
 def cli():
     """
         Digger: Deploy with confidence\n
