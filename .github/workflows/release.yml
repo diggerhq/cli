@@ -65,6 +65,18 @@ jobs:
           asset_name: dg-linux-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
 
+      - name: Upload file to bucket
+        uses: zdurham/s3-upload-github-action@master
+        with:
+          args: --acl public-read
+        env:
+         FILE: dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+         AWS_REGION: 'eu-west-1'
+         S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+         S3_KEY: linux/dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
   build-macos:
     needs: create-release
     runs-on: macos-latest
@@ -91,3 +103,15 @@ jobs:
           asset_path: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_name: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
+
+      - name: Upload file to bucket
+        uses: zdurham/s3-upload-github-action@master
+        with:
+          args: --acl public-read
+        env:
+         FILE: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+         AWS_REGION: 'eu-west-1'
+         S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+         S3_KEY: darwin/dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
