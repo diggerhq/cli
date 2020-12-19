@@ -104,7 +104,13 @@ jobs:
           asset_name: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
 
-      - name: Upload file to bucket
+  release-macos:
+    needs: 
+      - create-release
+      - build-macos 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload darwin file to bucket
         uses: zdurham/s3-upload-github-action@master
         with:
           args: --acl public-read
