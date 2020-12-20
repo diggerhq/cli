@@ -118,10 +118,12 @@ class TestWebapp(ClickTestMixin, unittest.TestCase):
         assert not result.exception
 
 @patch("dg.dg.get_project_settings")
+@patch("dg.dg.click")
 class TestResource(ClickTestMixin, unittest.TestCase):
 
-    def test_resouce_create(self, get_project_settings):
+    def test_resouce_create(self, get_project_settings, click):
         result = self._invoke_click_command(["resource", "create", "database"])
+        print(result.output)
         assert not result.exception
 
 

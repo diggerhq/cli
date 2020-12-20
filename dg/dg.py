@@ -329,32 +329,38 @@ def auth():
     report_async({"command": f"dg auth"}, status="complete")
 
 
-@cli.command()
-@click.argument("action", nargs=-1, required=True)
+@cli.group()
 @require_auth
-def env(action):
+def env():
     """
         Configure a new environment
     """
-    if action[0] == "list":
-        settings = get_project_settings()
-
-        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-
-        spin(1, "Loading environment list ...")
-        for env in settings["environments"].keys():
-            print(f">> {env}")
-
-        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
-    elif action[0] == "create":
-        targets = get_targets()
-        env_name = action[1]
-        settings = get_project_settings()
-        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-        project_name = settings["project"]["name"]
+@env.command(name="list")
+def env_list():
+    settings = get_project_settings()
 
+    report_async({"command": f"dg env list"}, settings=settings, status="start")
+
+    spin(1, "Loading environment list ...")
+    for env in settings["environments"].keys():
+        print(f">> {env}")
+
+    report_async({"command": f"dg env list"}, settings=settings, status="complete")
+
+@env.command(name="create")
+@click.argument("env_name", nargs=1, required=True)
+@click.option("--target", "-t", required=False)
+@click.option("--region", "-r", required=False)
+def env_create(env_name, target=None, region=None):
+
+    targets = get_targets()
+    settings = get_project_settings()
+    report_async({"command": f"dg env create"}, settings=settings, status="start")
+    project_name = settings["project"]["name"]
+
+    if target is None:
         questions = [
             {
                 'type': 'list',
@@ -362,6 +368,18 @@ def env(action):
                 'message': 'Select target',
                 'choices': targets.keys()
             },
+        ]
+
+        answers = prompt(questions)
+        target = answers["target"]
+
+
+    if target not in ["AWS ECS Fargate", "Digger Paas"]:
+        Bcolors.fail("This option is currently unsupported! Please try again")
+        return
+
+    if region is None:
+        questions = [
             {
                 'type': 'list',
                 'name': 'region',
@@ -370,298 +388,298 @@ def env(action):
                 'default': "us-east-1"
             },
         ]
-
         answers = prompt(questions)
+        region = answers["region"]        
 
-        target = answers["target"]
-        region = answers["region"]
+    if region not in AWS_REGIONS:
+        Bcolors.fail("This region is not valid! Please try again")
+        return
 
-        if target not in ["AWS ECS Fargate", "Digger Paas"]:
-            Bcolors.fail("This option is currently unsupported! Please try again")
-            return
-
-        if target == "AWS EC2 docker-compose":
-            questions = [
-                {
-                    'type': 'list',
-                    'name': 'termination',
-                    'message': 'When do you want to terminate?',
-                    'choices': [
-                        "12 hours",
-                        "1 day",
-                        "never",
-                    ]
-                },
-            ]
-            answers = prompt(questions)
-
-        if target == "AWS ECS Fargate":
-            credentials = retreive_aws_creds(project_name, env_name)
-        elif target == "Digger Paas":
-            credentials = {
-                "aws_key": None,
-                "aws_secret": None
-            }
-
-
-        # spin(2, 'Loading creds from ~/.aws/creds')
-        # spin(2, 'Generating terraform packages ...')
-        # spin(2, 'Applying infrastructure ...')
-        # spin(2, 'deploying packages ...')
-
-        first_service = next(iter(settings["services"].values()))
-
-        create_infra_api = lambda: api.create_infra({
-            "aws_key": credentials["aws_key"],
-            "aws_secret": credentials["aws_secret"],
-            "project_name": project_name,
-            "environment": env_name,
-            "project_type": targets[target],
-            "backend_bucket_name": "digger-terraform-states",
-            "backend_bucket_region": "eu-west-1",
-            "backend_bucket_key": f"{project_name}/project",
-            "container_port": first_service["port"],
-            "health_check": first_service.get("health_check", "/"),
-            "region": region,
-        })
-        response = create_infra_api()
-        job = json.loads(response.content)
-
-        # loading until infra status is complete
-        spinner = Halo(text="creating infrastructure ...", spinner="dots")
-        spinner.start()
-        while True:
-            statusResponse = api.get_job_info(job['job_id'])
-            print(statusResponse.content)
-            jobStatus = json.loads(statusResponse.content)
-            if jobStatus["status"] == "COMPLETED":
-                # this is a hack to fix https://github.com/diggerhq/cli-backend/issues/8
-                if jobStatus["docker_registry"] == "":
-                    response = create_infra_api()
-                    job = json.loads(response.content)
-                else:
-                    break
-            elif jobStatus["status"] == "FAILED":
-                Bcolors.fail("Could not create infrastructure")
-                print(jobStatus["fail_message"])
-                return
-            time.sleep(2)
-
-        spinner.stop()
-
-        # aws profile creation
-        profile_name = create_aws_profile(project_name, jobStatus["access_key"], jobStatus["secret_id"])
-
-        environments = settings["environments"]
-        environments[env_name] = {
-            "target": targets[target],
-            "region": region,
-            "lb_url": jobStatus["lb_url"],
-            "docker_registry": jobStatus["docker_registry"],
-            "aws_profile": profile_name,
+    if target == "AWS ECS Fargate":
+        credentials = retreive_aws_creds(project_name, env_name)
+    elif target == "Digger Paas":
+        credentials = {
+            "aws_key": None,
+            "aws_secret": None
         }
 
-        update_digger_yaml(settings)
 
-        # create a directory for this environment (for environments and secrets)
-        env_path = f"digger-master/{env_name}"
-        tform_path = f"{env_path}/terraform"
-        Path(env_path).mkdir(parents=True, exist_ok=True)
-        Path(tform_path).mkdir(parents=True, exist_ok=True)
-        shutil.rmtree(tform_path)        
+    # spin(2, 'Loading creds from ~/.aws/creds')
+    # spin(2, 'Generating terraform packages ...')
+    # spin(2, 'Applying infrastructure ...')
+    # spin(2, 'deploying packages ...')
 
-        # tform generation
-        spinner = Halo(text="Updating terraform ...", spinner="dots")
-        spinner.start()
-        download_terraform_files(project_name, env_name, tform_path)
-        spinner.stop()
+    first_service = next(iter(settings["services"].values()))
 
-        print("Deplyment successful!")
-        print(f"your deployment URL: http://{jobStatus['lb_url']}")
+    create_infra_api = lambda: api.create_infra({
+        "aws_key": credentials["aws_key"],
+        "aws_secret": credentials["aws_secret"],
+        "project_name": project_name,
+        "environment": env_name,
+        "project_type": targets[target],
+        "backend_bucket_name": "digger-terraform-states",
+        "backend_bucket_region": "eu-west-1",
+        "backend_bucket_key": f"{project_name}/project",
+        "container_port": first_service["port"],
+        "health_check": first_service.get("health_check", "/"),
+        "region": region,
+    })
+    response = create_infra_api()
+    job = json.loads(response.content)
 
-        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
-    
-    elif action[0] == "sync-tform":
-        env_name = action[1]
-        settings = get_project_settings()
-        project_name = settings["project"]["name"]
-        env_path = f"digger-master/{env_name}"
-        tform_path = f"{env_path}/terraform"
-        Path(env_path).mkdir(parents=True, exist_ok=True)
-        Path(tform_path).mkdir(parents=True, exist_ok=True)
-        shutil.rmtree(tform_path) 
-        # tform generation
-        spinner = Halo(text="Updating terraform ...", spinner="dots")
-        spinner.start()
-        download_terraform_files(project_name, env_name, tform_path)
-        spinner.stop()
-        Bcolors.okgreen("Terraform updated successfully")        
-        
-    elif action[0] == "build":
-        env_name = action[1]
-        settings = get_project_settings()
-        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-        project_name = settings["project"]["name"]
-        docker_registry = settings["environments"][env_name]["docker_registry"]
-        # for service in settings["services"]:
-        #     service_name = service["name"]
-        
-        # TODO: replace with service name here
-        first_service = next(iter(settings["services"].values()))
-        service_name = first_service["name"]
-        subprocess.Popen(["docker", "build", "-t", project_name, f"{service_name}/"]).communicate()
-
-        subprocess.Popen(["docker", "tag", f"{project_name}:latest", f"{docker_registry}:latest"]).communicate()
-        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
-
-
-    elif action[0] == "push":
-        env_name = action[1]
-        settings = get_project_settings()    
-        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-        profile_name = settings["environments"][env_name]["aws_profile"]
-        docker_registry = settings["environments"][env_name]["docker_registry"]
-        registry_endpoint = docker_registry.split("/")[0]
-        proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], capture_output=True)
-        docker_auth = proc.stdout.decode("utf-8")
-        subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
-        subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
-        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
-
-    elif action[0] == "deploy":
-        env_name = action[1]
-        settings = get_project_settings()
-        report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-        target = settings["environments"][env_name]["target"]
-        lb_url = settings["environments"][env_name]["lb_url"]
-        docker_registry = settings["environments"][env_name]["docker_registry"]
-        first_service = next(iter(settings["services"].values()))
-        project_name = settings["project"]["name"]
-
-        diggerProfile = get_digger_profile(project_name, env_name)
-        awsKey = diggerProfile.get("aws_access_key_id", None)
-        awsSecret = diggerProfile.get("aws_secret_access_key", None)
-
-        response = api.deploy_to_infra({
-            "cluster_name": f"{project_name}-{env_name}",
-            "service_name": f"{project_name}-{env_name}",
-            "image_url": f"{docker_registry}:latest",
-            "aws_key": awsKey,
-            "aws_secret": awsSecret
-        })
-
-        spinner = Halo(text="deploying ...", spinner="dots")
-        spinner.start()
-        output = json.loads(response.content)
-        spinner.stop()
-
-        print(output["msg"])
-        print(f"your deployment URL: http://{lb_url}")
-        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
-
-
-    elif action[0] == "destroy":
-        report_async({"command": f"dg env {action}"}, status="start")
-        env_name = action[1]
-
-
-        questions = [
-            {
-                'type': 'input',
-                'name': 'sure',
-                'message': 'Are you sure (Y/N)?'
-            },
-        ]
-
-        answers = prompt(questions)
-        if answers["sure"] != "Y":
-            Bcolors.fail("aborting")
-            return
-
-        settings = get_project_settings()
-        project_name = settings["project"]["name"]
-        diggerProfile = get_digger_profile(project_name, env_name)
-        awsKey = diggerProfile.get("aws_access_key_id", None)
-        awsSecret = diggerProfile.get("aws_secret_access_key", None)
-        project_name = settings["project"]["name"]
-
-        first_service = next(iter(settings["services"].values()))
-
-        response = api.destroy_infra({
-            "aws_key": awsKey,
-            "aws_secret": awsSecret,
-            "project_name": project_name,
-            "environment": env_name,
-            "backend_bucket_name": "digger-terraform-states",
-            "backend_bucket_region": "eu-west-1",
-            "container_port": first_service["port"]
-        })
-        
-        job = json.loads(response.content)
-
-        # loading until infra status is complete
-        spinner = Halo(text="destroying infrastructure ...", spinner="dots")
-        spinner.start()
-        while True:
-            statusResponse = api.get_job_info(job['job_id'])
-            print(statusResponse.content)
-            jobStatus = json.loads(statusResponse.content)
-            if jobStatus["status"] == "DESTROYED":
+    # loading until infra status is complete
+    spinner = Halo(text="creating infrastructure ...", spinner="dots")
+    spinner.start()
+    while True:
+        statusResponse = api.get_job_info(job['job_id'])
+        print(statusResponse.content)
+        jobStatus = json.loads(statusResponse.content)
+        if jobStatus["status"] == "COMPLETED":
+            # this is a hack to fix https://github.com/diggerhq/cli-backend/issues/8
+            if jobStatus["docker_registry"] == "":
+                response = create_infra_api()
+                job = json.loads(response.content)
+            else:
                 break
-            elif jobStatus["status"] == "FAILED":
-                Bcolors.fail("Could not destroy infrastructure")
-                print(jobStatus["fail_message"])
-                return
-            time.sleep(2)
-
-        spinner.stop()
-        Bcolors.okgreen("Infrasructure destroyed successfully")
-        report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
-
-    elif action[0] == "history":
-        pass
-
-    elif action[0] == "apply":
-        report_async({"command": f"dg env {action}"}, status="start")
-        env_name = action[1]
-        Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
-        if env_name == "local-docker":
-            generate_docker_compose_file()
-            spin(2, 'Updating local environment ...')
-            print("Local environment generated!")
-            print("Use `dg env up local-docker` to run your stack locally")
+        elif jobStatus["status"] == "FAILED":
+            Bcolors.fail("Could not create infrastructure")
+            print(jobStatus["fail_message"])
             return
+        time.sleep(2)
 
-        spin(2, 'Applying infrastructure ...')
-        print("Infrastructure apply completed!")
-        print(f"your deployment URL: http://digger-mvp.s3-website-{env_name}.us-east-2.amazonaws.com")
-        report_async({"command": f"dg env {action}"}, status="complete")
+    spinner.stop()
 
-    elif action[0] == "up":
-        report_async({"command": f"dg env {action}"}, status="start")
-        env_name = action[1]
-        if env_name == "local-docker":
-            subprocess.Popen(["docker-compose", "-f", "digger-master/local-docker/docker-compose.yml", "up"]).communicate()
-        report_async({"command": f"dg env {action}"}, status="complete")
+    # aws profile creation
+    profile_name = create_aws_profile(project_name, jobStatus["access_key"], jobStatus["secret_id"])
 
+    environments = settings["environments"]
+    environments[env_name] = {
+        "target": targets[target],
+        "region": region,
+        "lb_url": jobStatus["lb_url"],
+        "docker_registry": jobStatus["docker_registry"],
+        "aws_profile": profile_name,
+    }
 
-@cli.command()
-@click.argument("action")
-def target(action):
-    """
-        Configure a new target
-    """
+    update_digger_yaml(settings)
+
+    # create a directory for this environment (for environments and secrets)
+    env_path = f"digger-master/{env_name}"
+    tform_path = f"{env_path}/terraform"
+    Path(env_path).mkdir(parents=True, exist_ok=True)
+    Path(tform_path).mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(tform_path)        
+
+    # tform generation
+    spinner = Halo(text="Updating terraform ...", spinner="dots")
+    spinner.start()
+    download_terraform_files(project_name, env_name, tform_path)
+    spinner.stop()
+
+    print("Deplyment successful!")
+    print(f"your deployment URL: http://{jobStatus['lb_url']}")
+
+    report_async({"command": f"dg env create"}, settings=settings, status="complete")
+
+@env.command(name="sync-tform")
+@click.argument("env_name", nargs=1, required=True)
+def env_sync_tform(env_name):
+    settings = get_project_settings()
+    report_async({"command": f"dg env sync-tform"}, settings=settings, status="start")
+    project_name = settings["project"]["name"]
+    env_path = f"digger-master/{env_name}"
+    tform_path = f"{env_path}/terraform"
+    Path(env_path).mkdir(parents=True, exist_ok=True)
+    Path(tform_path).mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(tform_path) 
+    # tform generation
+    spinner = Halo(text="Updating terraform ...", spinner="dots")
+    spinner.start()
+    download_terraform_files(project_name, env_name, tform_path)
+    spinner.stop()
+    Bcolors.okgreen("Terraform updated successfully")        
+    report_async({"command": f"dg env sync-tform"}, settings=settings, status="complete")
+
+@env.command(name="build")
+@click.argument("env_name", nargs=1, required=True)
+def env_build(env_name):  
+    action = "build"
+    settings = get_project_settings()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+    project_name = settings["project"]["name"]
+    docker_registry = settings["environments"][env_name]["docker_registry"]
+    # for service in settings["services"]:
+    #     service_name = service["name"]
     
-@cli.command()
-@click.argument("action")
+    # TODO: replace with service name here
+    first_service = next(iter(settings["services"].values()))
+    service_name = first_service["name"]
+    subprocess.Popen(["docker", "build", "-t", project_name, f"{service_name}/"]).communicate()
+
+    subprocess.Popen(["docker", "tag", f"{project_name}:latest", f"{docker_registry}:latest"]).communicate()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+@env.command(name="push")
+@click.argument("env_name", nargs=1, required=True)
+def env_push(env_name):
+    action = "push"
+    settings = get_project_settings()    
+    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+    profile_name = settings["environments"][env_name]["aws_profile"]
+    docker_registry = settings["environments"][env_name]["docker_registry"]
+    registry_endpoint = docker_registry.split("/")[0]
+    proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], capture_output=True)
+    docker_auth = proc.stdout.decode("utf-8")
+    subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
+    subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+@env.command(name="deploy")
+@click.argument("env_name", nargs=1, required=True)
+def env_deploy(env_name):
+    action = "deploy"
+    settings = get_project_settings()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+    target = settings["environments"][env_name]["target"]
+    lb_url = settings["environments"][env_name]["lb_url"]
+    docker_registry = settings["environments"][env_name]["docker_registry"]
+    first_service = next(iter(settings["services"].values()))
+    project_name = settings["project"]["name"]
+
+    diggerProfile = get_digger_profile(project_name, env_name)
+    awsKey = diggerProfile.get("aws_access_key_id", None)
+    awsSecret = diggerProfile.get("aws_secret_access_key", None)
+
+    response = api.deploy_to_infra({
+        "cluster_name": f"{project_name}-{env_name}",
+        "service_name": f"{project_name}-{env_name}",
+        "image_url": f"{docker_registry}:latest",
+        "aws_key": awsKey,
+        "aws_secret": awsSecret
+    })
+
+    spinner = Halo(text="deploying ...", spinner="dots")
+    spinner.start()
+    output = json.loads(response.content)
+    spinner.stop()
+
+    print(output["msg"])
+    print(f"your deployment URL: http://{lb_url}")
+    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+@env.command(name="destroy")
+@click.argument("env_name", nargs=1, required=True)
+def env_destroy(env_name):
+    action = "destroy"
+    report_async({"command": f"dg env {action}"}, status="start")
+
+    questions = [
+        {
+            'type': 'input',
+            'name': 'sure',
+            'message': 'Are you sure (Y/N)?'
+        },
+    ]
+
+    answers = prompt(questions)
+    if answers["sure"] != "Y":
+        Bcolors.fail("aborting")
+        return
+
+    settings = get_project_settings()
+    project_name = settings["project"]["name"]
+    diggerProfile = get_digger_profile(project_name, env_name)
+    awsKey = diggerProfile.get("aws_access_key_id", None)
+    awsSecret = diggerProfile.get("aws_secret_access_key", None)
+    project_name = settings["project"]["name"]
+
+    first_service = next(iter(settings["services"].values()))
+
+    response = api.destroy_infra({
+        "aws_key": awsKey,
+        "aws_secret": awsSecret,
+        "project_name": project_name,
+        "environment": env_name,
+        "backend_bucket_name": "digger-terraform-states",
+        "backend_bucket_region": "eu-west-1",
+        "container_port": first_service["port"]
+    })
+    
+    job = json.loads(response.content)
+
+    # loading until infra status is complete
+    spinner = Halo(text="destroying infrastructure ...", spinner="dots")
+    spinner.start()
+    while True:
+        statusResponse = api.get_job_info(job['job_id'])
+        print(statusResponse.content)
+        jobStatus = json.loads(statusResponse.content)
+        if jobStatus["status"] == "DESTROYED":
+            break
+        elif jobStatus["status"] == "FAILED":
+            Bcolors.fail("Could not destroy infrastructure")
+            print(jobStatus["fail_message"])
+            return
+        time.sleep(2)
+
+    spinner.stop()
+    Bcolors.okgreen("Infrasructure destroyed successfully")
+    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+@env.command(name="history")
+def env_history():
+    action = "history"
+    print("Not implemented yet")
+
+@env.command(name="apply")
+@click.argument("env_name", nargs=1, required=True, default="local-docker")
+def env_apply(env_name):
+    action = "apply"
+    report_async({"command": f"dg env {action}"}, status="start")
+    Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
+    if env_name == "local-docker":
+        generate_docker_compose_file()
+        spin(2, 'Updating local environment ...')
+        print("Local environment generated!")
+        print("Use `dg env up local-docker` to run your stack locally")
+    else:
+        print("Not implemented yet")
+    report_async({"command": f"dg env {action}"}, status="complete")
+
+@env.command(name="up")
+@click.argument("env_name", nargs=1, default="local-docker")
+def env_up(env_name):
+    action = "up"
+    report_async({"command": f"dg env {action}"}, status="start")
+    if env_name == "local-docker":
+        subprocess.Popen(["docker-compose", "-f", "digger-master/local-docker/docker-compose.yml", "up"]).communicate()
+    else:
+        print("Not implemented yet")
+    report_async({"command": f"dg env {action}"}, status="complete")
+
+
+def validate_project_name(ctx, param, value):
+    if value is None:
+        return value
+    if len(value) > 0:
+        return value
+    else:
+        raise click.BadParameter("Project name required")
+
+@cli.group()
 @require_auth
-def project(action):
+def project():
     """
         Configure a new project
     """
-    if action == "init":
-        report_async({"command": f"dg project init"}, status="start")
 
+@project.command(name="init")
+@click.option("--name", nargs=1, required=False, callback=validate_project_name)
+def project_init(name=None):
+    action = "init"
+    report_async({"command": f"dg project init"}, status="start")
+
+    if name is None:
         defaultProjectName = os.path.basename(os.getcwd())
         questions = [
             {
@@ -676,80 +694,84 @@ def project(action):
         answers = prompt(questions)
 
         project_name = answers["project_name"]
+    else:
+        project_name = name
 
-        spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
-        spinner.start()
-        settings = init_project(project_name)
-        update_digger_yaml(settings)  
-        spinner.stop()
-
-
-        print("project initiated successfully")
-        report_async({"command": f"dg project init"}, settings=settings, status="copmlete")
+    spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
+    spinner.start()
+    settings = init_project(project_name)
+    update_digger_yaml(settings)  
+    spinner.stop()
 
 
-@cli.command()
-@click.argument("action")
-# @click.argument("service_name")
+    print("project initiated successfully")
+    report_async({"command": f"dg project init"}, settings=settings, status="copmlete")
+
+
+@cli.group()
 @require_auth
-def service(action):
+def service():
     """
         Configure a new service
     """
 
-    if action == "create":
-        pass
+@service.command(name="create")
+def service_create():
+    print("not implemented yet")
 
-    if action == "add":
-        report_async({"command": f"dg service add"}, status="start")
-        # service_names = get_service_names()
-        service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x), os.listdir(os.getcwd())))
 
-        if len(service_names) == 0:
-            Bcolors.fail("No service directories found, try cloning a repo in here!")
-            return
+@service.command(name="add")
+def service_add():
+    action = "add"
+    report_async({"command": f"dg service add"}, status="start")
+    # service_names = get_service_names()
+    service_names = list(filter(lambda x: x != "digger-master" and os.path.isdir(x) and not x.startswith("."), os.listdir(os.getcwd())))
 
-        questions = [
-            {
-                'type': 'list',
-                'name': 'service_name',
-                'message': 'select repository',
-                'choices': service_names
-            },
-        ]
+    if len(service_names) == 0:
+        Bcolors.fail("No service directories found, try cloning a repo in here!")
+        return
 
-        answers = prompt(questions)
-        service_name = answers["service_name"]
-        service_path = os.path.abspath(service_name)
+    questions = [
+        {
+            'type': 'list',
+            'name': 'service_name',
+            'message': 'select repository',
+            'choices': service_names
+        },
+    ]
 
-        settings = get_project_settings()
+    answers = prompt(questions)
+    service_name = answers["service_name"]
+    service_path = os.path.abspath(service_name)
 
-        try:
-            dockerfile_path = find_dockerfile(service_name)
-        except CouldNotDetermineDockerLocation as e:
-            print("Could not find dockerfile in root")
-            dockerfile_path = dockerfile_manual_entry()
-        dockerfile_path = os.path.abspath(dockerfile_path)
+    settings = get_project_settings()
 
-        settings["services"] = settings.get("services", {})
-        settings["services"][service_name] = {
-            "name": service_name,
-            "path": service_path,
-            "env_files": [],
-            "publicly_accissible": True,
-            "type": "container",
-            "port": 8080,
-            "health_check": "/",
-            "dockerfile": dockerfile_path,
-            "resources": {},
-            "dependencies": {},
-        }
+    try:
+        dockerfile_path = find_dockerfile(service_name)
+    except CouldNotDetermineDockerLocation as e:
+        print("Could not find dockerfile in root")
+        dockerfile_path = dockerfile_manual_entry()
+    dockerfile_path = os.path.abspath(dockerfile_path)
 
-        update_digger_yaml(settings)
-        spin(1, "Updating DGL config ... ")
+    settings["services"] = settings.get("services", {})
+    settings["services"][service_name] = {
+        "name": service_name,
+        "path": service_path,
+        "env_files": [],
+        "publicly_accissible": True,
+        "type": "container",
+        "port": 8080,
+        "health_check": "/",
+        "dockerfile": dockerfile_path,
+        "resources": {},
+        "dependencies": {},
+    }
 
-        print("Service added succesfully")
-        report_async({"command": f"dg service add"}, settings=settings, status="complete")
+    update_digger_yaml(settings)
+    spin(1, "Updating DGL config ... ")
+
+    print("Service added succesfully")
+    report_async({"command": f"dg service add"}, settings=settings, status="complete")
 
 @cli.command()
 @click.argument("folder_name")
@@ -837,80 +859,79 @@ def webapp(action):
     elif action == "add":
         pass
 
-@cli.command()
-@click.argument("action")
-@click.argument("resource_type")
-# @click.argument("resource_name")
-def resource(action, resource_type):
+@cli.group()
+def resource():
     """
         Configure a resource
     """
-    if action == "create":
 
-        settings = get_project_settings()
-        report_async({"command": f"dg resource create"}, settings=settings, status="start")
+@resource.command(name="create")
+@click.argument("resource_type", required=True,)
+@click.argument("name", required=False)
+def resource_create(resource_type, name=None):
+    action = "create"
 
-        service_names = settings["services"].keys()
+    settings = get_project_settings()
+    report_async({"command": f"dg resource create"}, settings=settings, status="start")
 
-        questions = [
-            {
-                'type': 'input',
-                'name': 'resource_name',
-                'message': 'What is the resource name?',
-            }
-        ]
+    service_names = settings["services"].keys()
 
-        if resource_type == "database":
-            questions.append({
-                'type': 'list',
-                'name': 'engine',
-                'message': 'Which Engine',
-                'choices': [
-                    'postgres',
-                    'mysql',
-                ]
-            })
-        elif resource_type == "email":
-            questions.append({
-                    'type': 'list',
-                    'name': 'frequency',
-                    'message': 'How often do you want it to run?',
-                    'choices': [
-                        "minutely",
-                        "hourly",
-                        "daily",
-                        "weekly",
-                        "monthly",
-                    ]
-            })
+    questions = [
+    ]
 
+    if name is None:
         questions.append({
+            'type': 'input',
+            'name': 'resource_name',
+            'message': 'What is the resource name?',
+        })
+
+    if resource_type == "database":
+        questions.append({
+            'type': 'list',
+            'name': 'engine',
+            'message': 'Which Engine',
+            'choices': [
+                'postgres',
+                'mysql',
+            ]
+        })
+    elif resource_type == "email":
+        questions.append({
+                'type': 'list',
+                'name': 'frequency',
+                'message': 'How often do you want it to run?',
+                'choices': [
+                    "minutely",
+                    "hourly",
+                    "daily",
+                    "weekly",
+                    "monthly",
+                ]
+        })
+
+    questions.append({
         'type': 'list',
         'name': 'service_name',
         'message': 'which service?',
         'choices': service_names
-        })
+    })
 
-        answers = prompt(questions)
-        service_name = answers["service_name"]
-        resource_name = answers["resource_name"]
-        engine = answers["engine"]
+    answers = prompt(questions)
+    service_name = answers["service_name"]
+    resource_name = answers["resource_name"]
+    engine = answers["engine"]
 
-        settings["services"][service_name]["resources"][resource_name] = {
-            "name": resource_name,
-            "type": "database",
-            "engine": engine,
-        }
-        update_digger_yaml(settings)
-        spin(2, "updating configuration ...")
+    settings["services"][service_name]["resources"][resource_name] = {
+        "name": resource_name,
+        "type": "database",
+        "engine": engine,
+    }
+    update_digger_yaml(settings)
+    spin(2, "updating configuration ...")
 
-        print("DGL Config updated")
-        report_async({"command": f"dg resource create"}, settings=settings, status="complete")
-
-
-    else:
-        Bcolors.warn(f"Error, unkonwn action {action}")
-
+    print("DGL Config updated")
+    report_async({"command": f"dg resource create"}, settings=settings, status="complete")
 
 
 
