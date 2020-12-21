@@ -45,14 +45,12 @@ jobs:
 
       - name: Package Application
         uses: diggerhq/pyinstaller-action-linux@main
-        with:
-          path: dg
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          cd dg/dist/dg-linux
-          zip -r ../../../dg-linux-${{needs.create-release.outputs.tag_version}}.zip dg
-          cd ../../../
+          cd dist/dg-linux
+          zip -r ../../dg-linux-${{needs.create-release.outputs.tag_version}}.zip dg
+          cd ../../
 
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -77,9 +75,9 @@ jobs:
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
-          cd dg/dist/dg-mac
-          zip -r ../../../dg-darwin-${{needs.create-release.outputs.tag_version}}.zip dg
-          cd ../../../
+          cd dist/dg-mac
+          zip -r ../../dg-darwin-${{needs.create-release.outputs.tag_version}}.zip dg
+          cd ../../
 
       - name: Upload Release Asset
         id: upload-release-asset 
