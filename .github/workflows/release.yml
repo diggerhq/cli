@@ -45,6 +45,8 @@ jobs:
 
       - name: Package Application
         uses: diggerhq/pyinstaller-action-linux@main
+        with:
+          path: ./
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         run: |
