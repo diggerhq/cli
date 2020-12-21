@@ -12,4 +12,4 @@ jobs:
       - name: Test
         uses: onichandame/python-test-action@master
         with:
-          deps_list: 'requirements.txt'
+          deps_list: 'dg/requirements.txt'
