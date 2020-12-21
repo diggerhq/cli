@@ -4,7 +4,7 @@ import zipfile
 import time
 import requests
 import tempfile
-from . import api
+from dg import api
 
 
 def download_file(url, path):
