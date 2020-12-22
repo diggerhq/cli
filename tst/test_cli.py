@@ -2,8 +2,8 @@ import unittest
 import os
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
-from dg import dg
-from dg.dg import cli
+from diggercli import dg
+from diggercli.dg import cli
 
 # mocking objects
 dg.api = MagicMock()
@@ -48,7 +48,7 @@ class TestService(ClickTestMixin, unittest.TestCase):
         result = self._invoke_click_command(["service", "create"])
         assert not result.exception
 
-@patch("dg.dg.get_project_settings")
+@patch("diggercli.dg.get_project_settings")
 class TestEnv(ClickTestMixin, unittest.TestCase):
 
     def test_env_list(self, get_project_settings):
@@ -100,13 +100,13 @@ class TestCreate(ClickTestMixin, unittest.TestCase):
         assert not result.exception
 
 class TestLogs(ClickTestMixin, unittest.TestCase):
-    @patch("dg.dg.get_project_settings")
+    @patch("diggercli.dg.get_project_settings")
     def test_logs(self, get_project_settings):
         result = self._invoke_click_command(["logs", "serviceName"])
         assert not result.exception
 
 
-@patch("dg.dg.get_project_settings")
+@patch("diggercli.dg.get_project_settings")
 class TestWebapp(ClickTestMixin, unittest.TestCase):
 
     def test_logs(self, get_project_settings):
@@ -117,8 +117,8 @@ class TestWebapp(ClickTestMixin, unittest.TestCase):
         result = self._invoke_click_command(["webapp", "add"])
         assert not result.exception
 
-@patch("dg.dg.get_project_settings")
-@patch("dg.dg.click")
+@patch("diggercli.dg.get_project_settings")
+@patch("diggercli.dg.click")
 class TestResource(ClickTestMixin, unittest.TestCase):
 
     def test_resouce_create(self, get_project_settings, click):

@@ -14,7 +14,6 @@ from pathlib import Path
 from collections import OrderedDict
 import subprocess
 from jinja2 import Template
-from dg.utils.pprint import Bcolors, Halo, spin
 from oyaml import load as yload, dump as ydump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -27,12 +26,12 @@ except ImportError:
     import importlib_resources as pkg_resources
 
 from PyInquirer import prompt, Separator
-from dg import api
-from dg.fileio import download_terraform_files
-from dg.auth import fetch_github_token, require_auth
-from dg.exceptions import CouldNotDetermineDockerLocation
-from dg._version import __version__
-from dg.constants import (
+from diggercli import api
+from diggercli.fileio import download_terraform_files
+from diggercli.auth import fetch_github_token, require_auth
+from diggercli.exceptions import CouldNotDetermineDockerLocation
+from diggercli._version import __version__
+from diggercli.constants import (
     DIGGERHOME_PATH,
     BACKEND_ENDPOINT,
     GITHUB_LOGIN_ENDPOINT,
@@ -41,6 +40,7 @@ from dg.constants import (
     AWSCREDS_FILE_PATH,
     AWS_REGIONS,
 )
+from diggercli.utils.pprint import Bcolors, Halo, spin
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 

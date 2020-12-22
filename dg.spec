@@ -3,12 +3,12 @@
 block_cipher = None
 
 
-a = Analysis(['dg.py'],
+a = Analysis(['diggercli/dg.py'],
              pathex=['/Users/mohamedsayed/dev/digger/cli'],
              binaries=[],
              datas=[
-              ('env/pyinstaller', 'env' ),
-              ('templates', 'templates' )
+              ('diggercli/env/pyinstaller', 'env' ),
+              ('diggercli/templates', 'templates' )
              ],
              hiddenimports=[],
              hookspath=[],

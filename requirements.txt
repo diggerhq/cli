@@ -27,3 +27,5 @@ spinners==0.0.24
 termcolor==1.1.0
 urllib3==1.25.11
 wcwidth==0.2.5
+# == installing local package to fix pyinstaller == #
+.

@@ -4,7 +4,7 @@ import zipfile
 import time
 import requests
 import tempfile
-from dg import api
+from diggercli import api
 
 
 def download_file(url, path):
