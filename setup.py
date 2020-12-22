@@ -12,6 +12,7 @@ setup(
     install_requires=[
         "click",
     ],
+    packages=['diggercli'],
     entry_points='''
         [console_scripts]
         dg=dg.dg:cli
