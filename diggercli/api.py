@@ -1,9 +1,9 @@
 import requests
 from requests import Request, Session
-from dg.auth import get_github_token
-from dg.constants import BACKEND_ENDPOINT
-from dg.exceptions import ApiRequestException
-from dg.utils.pprint import Bcolors
+from diggercli.auth import get_github_token
+from diggercli.constants import BACKEND_ENDPOINT
+from diggercli.exceptions import ApiRequestException
+from diggercli.utils.pprint import Bcolors
 
 
 def do_api(method, endpoint, data, auth_token=None):
