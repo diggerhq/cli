@@ -10,6 +10,16 @@ def get_base_path():
     else:
         return os.path.abspath(os.path.dirname(__file__))
 
+DIGGER_SPLASH = """
+        🚀 Digger: Deploy with confidence 🚀
+
+           ______                    
+          (, /    ) ,                
+            /    /    _   _    _  __ 
+          _/___ /__(_(_/_(_/__(/_/ (_
+        (_/___ /    .-/ .-/          
+                   (_/ (_/            
+"""
 
 BASE_PATH = get_base_path()
 HOMEDIR_PATH = str(Path.home())
