@@ -32,6 +32,7 @@ from diggercli.auth import fetch_github_token, require_auth
 from diggercli.exceptions import CouldNotDetermineDockerLocation
 from diggercli._version import __version__
 from diggercli.constants import (
+    DIGGER_SPLASH,
     DIGGERHOME_PATH,
     BACKEND_ENDPOINT,
     GITHUB_LOGIN_ENDPOINT,
@@ -295,23 +296,18 @@ def print_version(ctx, param, value):
         click.echo(f"dg cli v{__version__}")
         ctx.exit()
 
-@click.group()
+class SpecialEpilog(click.Group):
+    def format_epilog(self, ctx, formatter):
+        if self.epilog:
+            formatter.write_paragraph()
+            for line in self.epilog.split('\n'):
+                formatter.write_text(line)
+
+@click.group(cls=SpecialEpilog, epilog=DIGGER_SPLASH)
 @click.option('--version', is_flag=True, is_eager=True,
                 expose_value=False, callback=print_version)
 def cli():
-    """
-        Digger: Deploy with confidence\n
 
-           ______                    \n
-          (, /    ) ,                \n
-            /    /    _   _    _  __ \n
-          _/___ /__(_(_/_(_/__(/_/ (_\n
-        (_/___ /    .-/ .-/          \n
-                   (_/ (_/           \n 
-
-
-
-    """
     Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
     Path(AWS_HOME_PATH).mkdir(parents=True, exist_ok=True)
 
