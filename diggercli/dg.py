@@ -549,7 +549,7 @@ def env_deploy(env_name):
 
     response = api.deploy_to_infra({
         "cluster_name": f"{project_name}-{env_name}",
-        "service_name": f"{project_name}-{env_name}",
+        "service_name": f"{project_name}-{env_name}-{first_service['name']}",
         "image_url": f"{docker_registry}:latest",
         "aws_key": awsKey,
         "aws_secret": awsSecret
