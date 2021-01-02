@@ -411,6 +411,7 @@ def env_create(env_name, target=None, region=None):
         "aws_key": credentials["aws_key"],
         "aws_secret": credentials["aws_secret"],
         "project_name": project_name,
+        "service_name": first_service["name"],
         "environment": env_name,
         "project_type": targets[target],
         "backend_bucket_name": "digger-terraform-states",
