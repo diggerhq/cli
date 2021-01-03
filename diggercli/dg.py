@@ -128,6 +128,13 @@ def get_digger_profile(projectName, environment):
     else:
         return {}
 
+def get_env_vars(envName, serviceName):
+    settings = get_project_settings()
+    envVars = settings["environments"][envName].get("config_vars", {})
+    serviceEnvVars = settings["services"][serviceName].get("config_vars", {}).get(envName, {})
+    envVars.update(serviceEnvVars)
+    return envVars
+
 def retreive_aws_creds(projectName, environment):
     diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
     diggerProfileName = f"{projectName}-{environment}"
@@ -546,13 +553,16 @@ def env_deploy(env_name):
     diggerProfile = get_digger_profile(project_name, env_name)
     awsKey = diggerProfile.get("aws_access_key_id", None)
     awsSecret = diggerProfile.get("aws_secret_access_key", None)
+    envVars = get_env_vars(env_name, first_service["name"])
+
 
     response = api.deploy_to_infra({
         "cluster_name": f"{project_name}-{env_name}",
         "service_name": f"{project_name}-{env_name}-{first_service['name']}",
         "image_url": f"{docker_registry}:latest",
         "aws_key": awsKey,
-        "aws_secret": awsSecret
+        "aws_secret": awsSecret,
+        "env_vars": json.dumps(envVars)
     })
 
     spinner = Halo(text="deploying ...", spinner="dots")
