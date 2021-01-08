@@ -575,6 +575,7 @@ def env_destroy(env_name, prompt=False):
 
     settings = get_project_settings()
     project_name = settings["project"]["name"]
+    target = settings["environments"][env_name]["target"]
     
     if target == "aws_fargate":
         credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)

@@ -9,7 +9,7 @@ from diggercli.dg import cli
 dg.api = MagicMock()
 dg.auth.require_auth = MagicMock()
 dg.fetch_github_token = MagicMock()
-dg.prompt = MagicMock()
+dg.pyprompt = MagicMock()
 dg.report_async = MagicMock()
 dg.update_digger_yaml = MagicMock()
 dg.json = MagicMock()
