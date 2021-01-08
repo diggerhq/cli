@@ -25,7 +25,7 @@ except ImportError:
     # Try backported to PY<37 `importlib_resources`.
     import importlib_resources as pkg_resources
 
-from PyInquirer import prompt, Separator
+from PyInquirer import prompt as pyprompt, Separator
 from diggercli import api
 from diggercli.fileio import download_terraform_files
 from diggercli.auth import fetch_github_token, require_auth
@@ -93,7 +93,7 @@ def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
                 'validate': lambda x: len(x) > 0
             },
         ]
-        answers = prompt(questions)
+        answers = pyprompt(questions)
     else:
         maskedAwsKey = currentAwsKey[:4]
         maskedAwsSecret = currentAwsSecret[:4]
@@ -111,22 +111,12 @@ def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
             },
         ]
 
-        answers = prompt(questions)
+        answers = pyprompt(questions)
         answers["aws_key"] = currentAwsKey if answers["aws_key"] == "" else answers["aws_key"]
         answers["aws_secret"] = currentAwsSecret if answers["aws_secret"] == "" else answers["aws_secret"]
 
     return answers
 
-def get_digger_profile(projectName, environment):
-    global DIGGERHOME_PATH
-    diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
-    diggerProfileName = f"{projectName}-{environment}"
-    diggerconfig = configparser.ConfigParser()
-    diggerconfig.read(diggercredsFile)
-    if diggerProfileName in diggerconfig:
-        return diggerconfig[diggerProfileName]
-    else:
-        return {}
 
 def get_env_vars(envName, serviceName):
     settings = get_project_settings()
@@ -135,25 +125,28 @@ def get_env_vars(envName, serviceName):
     envVars.update(serviceEnvVars)
     return envVars
 
-def retreive_aws_creds(projectName, environment):
+def retreive_aws_creds(projectName, environment, prompt=True):
     diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
-    diggerProfileName = f"{projectName}-{environment}"
+    profileName = f"{projectName}-{environment}"
     diggerconfig = configparser.ConfigParser()
     diggerconfig.read(diggercredsFile)
 
-    if diggerProfileName not in diggerconfig:
-        diggerconfig[diggerProfileName] = {}
+    if profileName not in diggerconfig:
+        diggerconfig[profileName] = {}
     
-    currentAwsKey = diggerconfig[diggerProfileName].get("aws_access_key_id", None)
-    currentAwsSecret = diggerconfig[diggerProfileName].get("aws_secret_access_key", None)
+    currentAwsKey = diggerconfig[profileName].get("aws_access_key_id", None)
+    currentAwsSecret = diggerconfig[profileName].get("aws_secret_access_key", None)
 
-    answers = prompt_for_aws_keys(currentAwsKey, currentAwsSecret)
+    if prompt or (currentAwsKey is None or currentAwsSecret is None):
+        answers = prompt_for_aws_keys(currentAwsKey, currentAwsSecret)
+        newAwsKey = answers["aws_key"]
+        newAwsSecret = answers["aws_secret"]
+    else:        
+        newAwsKey = currentAwsKey
+        newAwsSecret = currentAwsSecret
 
-    newAwsKey = answers["aws_key"]
-    newAwsSecret = answers["aws_secret"]
-
-    diggerconfig[diggerProfileName]["aws_access_key_id"] = newAwsKey
-    diggerconfig[diggerProfileName]["aws_secret_access_key"] = newAwsSecret
+    diggerconfig[profileName]["aws_access_key_id"] = newAwsKey
+    diggerconfig[profileName]["aws_secret_access_key"] = newAwsSecret
 
     with open(diggercredsFile, 'w') as f:
         diggerconfig.write(f)
@@ -218,27 +211,6 @@ def init_project(project_name):
 
         return settings
 
-def create_aws_profile(project_name, access_key, secret_id):
-    spinner = Halo(text="creating aws profile ...", spinner="dots")
-    profile_name = "digger-" + project_name
-    spinner.start()
-    awscredsFile = AWSCREDS_FILE_PATH
-    awsconfig = configparser.ConfigParser()
-    awsconfig.read(awscredsFile)
-
-    uniq_profile_name = profile_name
-    while uniq_profile_name in awsconfig:
-        uniq_profile_name = profile_name + str(random.randint(1,10000))
-    profile_name = uniq_profile_name
-
-    awsconfig[profile_name] = {}
-    awsconfig[profile_name]["aws_access_key_id"] = access_key
-    awsconfig[profile_name]["aws_secret_access_key"] = secret_id
-
-    with open(awscredsFile, 'w') as f:
-        awsconfig.write(f)
-    spinner.stop()
-    return profile_name
 
 def clone_repo(url):
     subprocess.Popen(["git", "clone", url]).communicate()
@@ -352,11 +324,13 @@ def env_list():
 
     report_async({"command": f"dg env list"}, settings=settings, status="complete")
 
+
 @env.command(name="create")
 @click.argument("env_name", nargs=1, required=True)
 @click.option("--target", "-t", required=False)
 @click.option("--region", "-r", required=False)
-def env_create(env_name, target=None, region=None):
+@click.option('--prompt/--no-prompt', default=True)
+def env_create(env_name, target=None, region=None, prompt=True):
 
     targets = get_targets()
     settings = get_project_settings()
@@ -373,7 +347,7 @@ def env_create(env_name, target=None, region=None):
             },
         ]
 
-        answers = prompt(questions)
+        answers = pyprompt(questions)
         target = answers["target"]
 
 
@@ -391,7 +365,7 @@ def env_create(env_name, target=None, region=None):
                 'default': "us-east-1"
             },
         ]
-        answers = prompt(questions)
+        answers = pyprompt(questions)
         region = answers["region"]        
 
     if region not in AWS_REGIONS:
@@ -399,7 +373,7 @@ def env_create(env_name, target=None, region=None):
         return
 
     if target == "AWS ECS Fargate":
-        credentials = retreive_aws_creds(project_name, env_name)
+        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
     elif target == "Digger Paas":
         credentials = {
             "aws_key": None,
@@ -453,16 +427,12 @@ def env_create(env_name, target=None, region=None):
 
     spinner.stop()
 
-    # aws profile creation
-    profile_name = create_aws_profile(project_name, jobStatus["access_key"], jobStatus["secret_id"])
-
     environments = settings["environments"]
     environments[env_name] = {
         "target": targets[target],
         "region": region,
         "lb_url": jobStatus["lb_url"],
         "docker_registry": jobStatus["docker_registry"],
-        "aws_profile": profile_name,
     }
 
     update_digger_yaml(settings)
@@ -525,14 +495,18 @@ def env_build(env_name):
 
 @env.command(name="push")
 @click.argument("env_name", nargs=1, required=True)
-def env_push(env_name):
+@click.option('--prompt/--no-prompt', default=False)
+def env_push(env_name, prompt=False):
     action = "push"
     settings = get_project_settings()    
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-    profile_name = settings["environments"][env_name]["aws_profile"]
+    project_name = settings["project"]["name"]
     docker_registry = settings["environments"][env_name]["docker_registry"]
     registry_endpoint = docker_registry.split("/")[0]
-    proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", "--profile", profile_name,], capture_output=True)
+    credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+    os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
+    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
+    proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", "us-east-1", ], capture_output=True)
     docker_auth = proc.stdout.decode("utf-8")
     subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
     subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
@@ -540,7 +514,8 @@ def env_push(env_name):
 
 @env.command(name="deploy")
 @click.argument("env_name", nargs=1, required=True)
-def env_deploy(env_name):
+@click.option('--prompt/--no-prompt', default=False)
+def env_deploy(env_name, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -550,11 +525,15 @@ def env_deploy(env_name):
     first_service = next(iter(settings["services"].values()))
     project_name = settings["project"]["name"]
 
-    diggerProfile = get_digger_profile(project_name, env_name)
-    awsKey = diggerProfile.get("aws_access_key_id", None)
-    awsSecret = diggerProfile.get("aws_secret_access_key", None)
-    envVars = get_env_vars(env_name, first_service["name"])
+    if target == "aws_fargate":
+        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+        awsKey = credentials["aws_key"]
+        awsSecret = credentials["aws_secret"]
+    else:
+        awsKey = None
+        awsSecret = None
 
+    envVars = get_env_vars(env_name, first_service["name"])
 
     response = api.deploy_to_infra({
         "cluster_name": f"{project_name}-{env_name}",
@@ -576,7 +555,8 @@ def env_deploy(env_name):
 
 @env.command(name="destroy")
 @click.argument("env_name", nargs=1, required=True)
-def env_destroy(env_name):
+@click.option('--prompt/--no-prompt', default=False)
+def env_destroy(env_name, prompt=False):
     action = "destroy"
     report_async({"command": f"dg env {action}"}, status="start")
 
@@ -588,17 +568,23 @@ def env_destroy(env_name):
         },
     ]
 
-    answers = prompt(questions)
+    answers = pyprompt(questions)
     if answers["sure"] != "Y":
         Bcolors.fail("aborting")
         return
 
     settings = get_project_settings()
     project_name = settings["project"]["name"]
-    diggerProfile = get_digger_profile(project_name, env_name)
-    awsKey = diggerProfile.get("aws_access_key_id", None)
-    awsSecret = diggerProfile.get("aws_secret_access_key", None)
-    project_name = settings["project"]["name"]
+    target = settings["environments"][env_name]["target"]
+    
+    if target == "aws_fargate":
+        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+        awsKey = credentials["aws_key"]
+        awsSecret = credentials["aws_secret"]
+    else:
+        awsKey = None
+        awsSecret = None
+
 
     first_service = next(iter(settings["services"].values()))
 
@@ -698,7 +684,7 @@ def project_init(name=None):
             },
         ]
 
-        answers = prompt(questions)
+        answers = pyprompt(questions)
 
         project_name = answers["project_name"]
     else:
@@ -747,7 +733,7 @@ def service_add():
         },
     ]
 
-    answers = prompt(questions)
+    answers = pyprompt(questions)
     service_name = answers["service_name"]
     service_path = os.path.abspath(service_name)
 
@@ -924,7 +910,7 @@ def resource_create(resource_type, name=None):
         'choices': service_names
     })
 
-    answers = prompt(questions)
+    answers = pyprompt(questions)
     service_name = answers["service_name"]
     resource_name = answers["resource_name"]
     engine = answers["engine"]
