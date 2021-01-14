@@ -334,8 +334,10 @@ def env_create(env_name, target=None, region=None, prompt=True):
 
     targets = get_targets()
     settings = get_project_settings()
+    first_service = next(iter(settings["services"].values()))
     report_async({"command": f"dg env create"}, settings=settings, status="start")
     project_name = settings["project"]["name"]
+    service_name = first_service["name"]
 
     if target is None:
         questions = [
@@ -386,13 +388,12 @@ def env_create(env_name, target=None, region=None, prompt=True):
     # spin(2, 'Applying infrastructure ...')
     # spin(2, 'deploying packages ...')
 
-    first_service = next(iter(settings["services"].values()))
 
     create_infra_api = lambda: api.create_infra({
         "aws_key": credentials["aws_key"],
         "aws_secret": credentials["aws_secret"],
         "project_name": project_name,
-        "service_name": first_service["name"],
+        "service_name": service_name,
         "environment": env_name,
         "project_type": targets[target],
         "backend_bucket_name": "digger-terraform-states",
@@ -447,7 +448,7 @@ def env_create(env_name, target=None, region=None, prompt=True):
     # tform generation
     spinner = Halo(text="Updating terraform ...", spinner="dots")
     spinner.start()
-    download_terraform_files(project_name, env_name, tform_path)
+    download_terraform_files(project_name, service_name, env_name, tform_path)
     spinner.stop()
 
     print("Deplyment successful!")
@@ -460,7 +461,9 @@ def env_create(env_name, target=None, region=None, prompt=True):
 def env_sync_tform(env_name):
     settings = get_project_settings()
     report_async({"command": f"dg env sync-tform"}, settings=settings, status="start")
+    first_service = next(iter(settings["services"].values()))
     project_name = settings["project"]["name"]
+    service_name = first_service["name"]
     env_path = f"digger-master/{env_name}"
     tform_path = f"{env_path}/terraform"
     Path(env_path).mkdir(parents=True, exist_ok=True)
@@ -469,7 +472,7 @@ def env_sync_tform(env_name):
     # tform generation
     spinner = Halo(text="Updating terraform ...", spinner="dots")
     spinner.start()
-    download_terraform_files(project_name, env_name, tform_path)
+    download_terraform_files(project_name, service_name, env_name, tform_path)
     spinner.stop()
     Bcolors.okgreen("Terraform updated successfully")        
     report_async({"command": f"dg env sync-tform"}, settings=settings, status="complete")
@@ -576,6 +579,7 @@ def env_destroy(env_name, prompt=False):
     settings = get_project_settings()
     project_name = settings["project"]["name"]
     target = settings["environments"][env_name]["target"]
+    first_service = next(iter(settings["services"].values()))
     
     if target == "aws_fargate":
         credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
@@ -592,6 +596,7 @@ def env_destroy(env_name, prompt=False):
         "aws_key": awsKey,
         "aws_secret": awsSecret,
         "project_name": project_name,
+        "service_name": first_service["name"],
         "environment": env_name,
         "backend_bucket_name": "digger-terraform-states",
         "backend_bucket_region": "eu-west-1",
