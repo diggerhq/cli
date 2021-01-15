@@ -690,6 +690,9 @@ def project_init(name=None):
     else:
         project_name = name
 
+    # This will throw error if project name is invalid (e.g. project exists)
+    api.check_project_name(project_name)
+
     spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
     spinner.start()
     settings = init_project(project_name)

@@ -20,6 +20,15 @@ def do_api(method, endpoint, data, auth_token=None):
         raise ApiRequestException(response.content)
     return response
 
+def check_project_name(projectName):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/check_project_name",
+        {"project_name": projectName},
+        auth_token=token
+    )
+
 def create_infra(data):
     token = get_github_token()
     return do_api(
