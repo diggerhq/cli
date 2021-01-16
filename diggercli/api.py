@@ -1,3 +1,4 @@
+import json
 import requests
 from requests import Request, Session
 from diggercli.auth import get_github_token
@@ -84,14 +85,15 @@ def get_logs(projectName):
         auth_token=token
     )
 
-def download_terraform_async(projectName, environment):
+def download_terraform_async(projectName, environment, services):
     token = get_github_token()
     return do_api(
         "POST",
         f"{BACKEND_ENDPOINT}/api/download_terraform",
         {
             "project_name": projectName,
-            "environment": environment
+            "environment": environment,
+            "services": json.dumps(services)
         },
         auth_token=token
     )
