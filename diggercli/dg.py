@@ -68,11 +68,11 @@ def find_dockerfile(path):
         return os.path.join(path, "Dockerfile")
     raise CouldNotDetermineDockerLocation("Could not find dockerfile")
 
-def dockerfile_manual_entry():
+def dockerfile_manual_entry(service_path):
     while True:
-        print("Please enter path to Dockerfile directly")
+        print("Please enter path to Dockerfile directly (relative to root service folder)")
         path = input()
-        if os.path.exists(path):
+        if os.path.exists(os.path.join(service_path, path)):
             return path
         else:
             print("error, dockerfile not found")
@@ -495,8 +495,8 @@ def env_build(env_name, service):
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
     project_name = settings["project"]["name"]
     docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]    
-    subprocess.Popen(["docker", "build", "-t", project_name, f"{service_name}/"]).communicate()
-    subprocess.Popen(["docker", "tag", f"{project_name}:latest", f"{docker_registry}:latest"]).communicate()
+    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
+    subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:latest", f"{docker_registry}:latest"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 @env.command(name="push")
@@ -560,13 +560,14 @@ def env_deploy(env_name, service, prompt=False):
 
         answers = pyprompt(questions)
 
-        service_name = answers["service_name"]
+        service_key = answers["service_name"]
     else:
-        service_name = service
+        service_key = service
 
+    service_name = settings["services"][service_key]["service_name"]
     target = settings["environments"][env_name]["target"]
-    lb_url = settings["environments"][env_name]["services"][service_name]["lb_url"]
-    docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]
+    lb_url = settings["environments"][env_name]["services"][service_key]["lb_url"]
+    docker_registry = settings["environments"][env_name]["services"][service_key]["docker_registry"]
     region = settings["environments"][env_name]["region"]
     project_name = settings["project"]["name"]
 
@@ -578,7 +579,7 @@ def env_deploy(env_name, service, prompt=False):
         awsKey = None
         awsSecret = None
 
-    envVars = get_env_vars(env_name, service_name)
+    envVars = get_env_vars(env_name, service_key)
 
     spinner = Halo(text="deploying ...", spinner="dots")
     spinner.start()
@@ -783,7 +784,7 @@ def service_add():
 
     answers = pyprompt(questions)
     service_name = answers["service_name"]
-    service_path = os.path.abspath(service_name)
+    service_path = service_name
 
     settings = get_project_settings()
 
@@ -792,7 +793,7 @@ def service_add():
     except CouldNotDetermineDockerLocation as e:
         print("Could not find dockerfile in root")
         dockerfile_path = dockerfile_manual_entry()
-    dockerfile_path = os.path.abspath(dockerfile_path)
+
 
     settings["services"] = settings.get("services", {})
     settings["services"][service_name] = {
@@ -847,7 +848,7 @@ def create(folder_name, region):
         "aws_profile": profile_name,
     }
 
-    anodePath = os.path.join(os.getcwd(), "a-nodeapp")
+    anodePath = "a-nodeapp"
     settings["services"]["a-nodeapp"] = {
         "name": "a-nodeapp",
         "path": anodePath,
