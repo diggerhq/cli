@@ -31,6 +31,7 @@ env = Env()
 env.read_env(f"{BASE_PATH}/env/.env", recurse=False)
 BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
 GITHUB_LOGIN_ENDPOINT = BACKEND_ENDPOINT + "/login/github/"
+PAAS_TARGET = "diggerhq/target-fargate@v1.0.0"
 AWS_REGIONS = [
     "us-east-1",
     "us-east-2",

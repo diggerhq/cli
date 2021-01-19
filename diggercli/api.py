@@ -85,7 +85,7 @@ def get_logs(projectName):
         auth_token=token
     )
 
-def download_terraform_async(projectName, environment, services):
+def download_terraform_async(projectName, environment, target, services):
     token = get_github_token()
     return do_api(
         "POST",
@@ -93,6 +93,7 @@ def download_terraform_async(projectName, environment, services):
         {
             "project_name": projectName,
             "environment": environment,
+            "target": target,
             "services": json.dumps(services)
         },
         auth_token=token

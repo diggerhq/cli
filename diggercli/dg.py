@@ -32,6 +32,7 @@ from diggercli.auth import fetch_github_token, require_auth
 from diggercli.exceptions import CouldNotDetermineDockerLocation
 from diggercli._version import __version__
 from diggercli.constants import (
+    PAAS_TARGET,
     DIGGER_SPLASH,
     DIGGERHOME_PATH,
     BACKEND_ENDPOINT,
@@ -245,7 +246,7 @@ def services():
 def get_targets():
     return {
         "Digger Paas": "digger_paas",
-        "AWS ECS Fargate": "aws_fargate",
+        "AWS ECS Fargate": "diggerhq/target-fargate@v1.0.0",
         "(soon!) AWS EKS": "aws_eks",
         "(soon!) AWS EC2 docker-compose": "aws_ec2_compose",
         "(soon!) Google Cloud Run": "gcp_cloudrun",
@@ -348,10 +349,11 @@ def env_create(env_name, target=None, region=None, prompt=True):
         ]
 
         answers = pyprompt(questions)
-        target = answers["target"]
+        target_key = answers["target"]
+        target = targets[target_key]
 
 
-    if target not in ["AWS ECS Fargate", "Digger Paas"]:
+    if target_key not in ["AWS ECS Fargate", "Digger Paas"]:
         Bcolors.fail("This option is currently unsupported! Please try again")
         return
 
@@ -372,13 +374,14 @@ def env_create(env_name, target=None, region=None, prompt=True):
         Bcolors.fail("This region is not valid! Please try again")
         return
 
-    if target == "AWS ECS Fargate":
-        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
-    elif target == "Digger Paas":
+    if target == "digger_paas":
+        target = PAAS_TARGET
         credentials = {
             "aws_key": None,
             "aws_secret": None
         }
+    else:
+        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
 
 
     # spin(2, 'Loading creds from ~/.aws/creds')
@@ -393,7 +396,8 @@ def env_create(env_name, target=None, region=None, prompt=True):
         "project_name": project_name,
         "services": json.dumps(settings["services"]),
         "environment": env_name,
-        "project_type": targets[target],
+        "launch_type": "FARGATE",
+        "target": target,
         "backend_bucket_name": "digger-terraform-states",
         "backend_bucket_region": "eu-west-1",
         "backend_bucket_key": f"{project_name}/project",
@@ -421,7 +425,7 @@ def env_create(env_name, target=None, region=None, prompt=True):
 
     environments = settings["environments"]
     environments[env_name] = {
-        "target": targets[target],
+        "target": target,
         "region": region,
         "services": jobStatus["services"],
     }
@@ -438,7 +442,7 @@ def env_create(env_name, target=None, region=None, prompt=True):
     # tform generation
     spinner = Halo(text="Updating terraform ...", spinner="dots")
     spinner.start()
-    download_terraform_files(project_name, env_name, settings["services"], tform_path)
+    download_terraform_files(project_name, env_name, target, settings["services"], tform_path)
     spinner.stop()
 
     print("Deplyment successful!")
@@ -457,13 +461,14 @@ def env_sync_tform(env_name):
     services = settings["services"]
     env_path = f"digger-master/{env_name}"
     tform_path = f"{env_path}/terraform"
+    target = settings["environments"][env_name]["target"]
     Path(env_path).mkdir(parents=True, exist_ok=True)
     Path(tform_path).mkdir(parents=True, exist_ok=True)
     shutil.rmtree(tform_path) 
     # tform generation
     spinner = Halo(text="Updating terraform ...", spinner="dots")
     spinner.start()
-    download_terraform_files(project_name, env_name, services, tform_path)
+    download_terraform_files(project_name, env_name, target, services, tform_path)
     spinner.stop()
     Bcolors.okgreen("Terraform updated successfully")        
     report_async({"command": f"dg env sync-tform"}, settings=settings, status="complete")
@@ -570,14 +575,15 @@ def env_deploy(env_name, service, prompt=False):
     docker_registry = settings["environments"][env_name]["services"][service_key]["docker_registry"]
     region = settings["environments"][env_name]["region"]
     project_name = settings["project"]["name"]
-
-    if target == "aws_fargate":
+    
+    if target == "digger_paas":
+        target = PAAS_TARGET
+        awsKey = None
+        awsSecret = None
+    else:
         credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
-    else:
-        awsKey = None
-        awsSecret = None
 
     envVars = get_env_vars(env_name, service_key)
 
@@ -625,19 +631,22 @@ def env_destroy(env_name, prompt=False):
     project_name = settings["project"]["name"]
     target = settings["environments"][env_name]["target"]
     
-    if target == "aws_fargate":
+    if target == "digger_paas":
+        target = PAAS_TARGET
+        awsKey = None
+        awsSecret = None
+    else:
         credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
-    else:
-        awsKey = None
-        awsSecret = None
 
 
     response = api.destroy_infra({
         "aws_key": awsKey,
         "aws_secret": awsSecret,
         "project_name": project_name,
+        "launch_type": "FARGATE",
+        "target": target,
         "environment": env_name,
         "backend_bucket_name": "digger-terraform-states",
         "backend_bucket_region": "eu-west-1",
