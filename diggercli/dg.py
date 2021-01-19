@@ -876,7 +876,7 @@ def create(folder_name, region):
 # @click.argument("webapp_name")
 def logs(service_name):
     """
-        Configure a web application (frontend)
+       View the logs of a service
     """
     settings = get_project_settings()
     projectName = settings["project"]["name"]
