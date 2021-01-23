@@ -18,8 +18,8 @@ def download_file(url, path):
                 #if chunk:
                 f.write(chunk)
 
-def download_terraform_files(projectName, environment, target, services, destinationDir):
-    response = api.download_terraform_async(projectName, environment, target, services)
+def download_terraform_files(projectName, environment, region, target, services, destinationDir):
+    response = api.download_terraform_async(projectName, environment, region, target, services)
     job = json.loads(response.content)
 
     while True:
