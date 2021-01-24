@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+import re
 from datetime import datetime
 import threading
 import shutil
@@ -30,6 +31,8 @@ from diggercli import api
 from diggercli.fileio import download_terraform_files
 from diggercli.auth import fetch_github_token, require_auth
 from diggercli.exceptions import CouldNotDetermineDockerLocation
+from diggercli.validators import ProjectNameValidator, env_name_validate
+from diggercli.transformers import transform_service_name
 from diggercli._version import __version__
 from diggercli.constants import (
     PAAS_TARGET,
@@ -332,6 +335,12 @@ def env_list():
 @click.option("--region", "-r", required=False)
 @click.option('--prompt/--no-prompt', default=True)
 def env_create(env_name, target=None, region=None, prompt=True):
+
+    try:
+        env_name_validate(env_name)
+    except ValueError as e:
+        Bcolors.warn(str(e))
+        sys.exit()
 
     targets = get_targets()
     settings = get_project_settings()
@@ -738,7 +747,7 @@ def project_init(name=None):
                 'name': 'project_name',
                 'message': 'Enter project name',
                 'default': defaultProjectName,
-                'validate': lambda x: len(x) > 0
+                'validate': ProjectNameValidator
             },
         ]
 
@@ -796,19 +805,26 @@ def service_add():
 
     answers = pyprompt(questions)
     service_name = answers["service_name"]
+    service_key = service_name
+
     service_path = service_name
+    serviceNameOk = re.fullmatch(r'', service_name)
+    if not serviceNameOk:
+        Bcolors.warn("service names should be lowercase letters, hiphens and at most 10 characters")
+        service_name = transform_service_name(service_name)
+        Bcolors.warn(f"Updating name to: {service_name}")
 
     settings = get_project_settings()
 
     try:
-        dockerfile_path = find_dockerfile(service_name)
+        dockerfile_path = find_dockerfile(service_path)
     except CouldNotDetermineDockerLocation as e:
         print("Could not find dockerfile in root")
-        dockerfile_path = dockerfile_manual_entry()
+        dockerfile_path = dockerfile_manual_entry(service_path)
 
 
     settings["services"] = settings.get("services", {})
-    settings["services"][service_name] = {
+    settings["services"][service_key] = {
         "service_name": service_name,
         "path": service_path,
         "env_files": [],
