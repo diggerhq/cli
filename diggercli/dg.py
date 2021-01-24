@@ -246,7 +246,7 @@ def services():
 def get_targets():
     return {
         "Digger Paas": "digger_paas",
-        "AWS ECS Fargate": "diggerhq/target-fargate@v1.0.0",
+        "AWS ECS Fargate": "diggerhq/target-fargate@v1.0.1",
         "(soon!) AWS EKS": "aws_eks",
         "(soon!) AWS EC2 docker-compose": "aws_ec2_compose",
         "(soon!) Google Cloud Run": "gcp_cloudrun",
