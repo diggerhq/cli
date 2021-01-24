@@ -442,7 +442,7 @@ def env_create(env_name, target=None, region=None, prompt=True):
     # tform generation
     spinner = Halo(text="Updating terraform ...", spinner="dots")
     spinner.start()
-    download_terraform_files(project_name, env_name, target, settings["services"], tform_path)
+    download_terraform_files(project_name, env_name, region, target, settings["services"], tform_path)
     spinner.stop()
 
     print("Deplyment successful!")
@@ -462,13 +462,14 @@ def env_sync_tform(env_name):
     env_path = f"digger-master/{env_name}"
     tform_path = f"{env_path}/terraform"
     target = settings["environments"][env_name]["target"]
+    region = settings["environments"][env_name]["region"]
     Path(env_path).mkdir(parents=True, exist_ok=True)
     Path(tform_path).mkdir(parents=True, exist_ok=True)
     shutil.rmtree(tform_path) 
     # tform generation
     spinner = Halo(text="Updating terraform ...", spinner="dots")
     spinner.start()
-    download_terraform_files(project_name, env_name, target, services, tform_path)
+    download_terraform_files(project_name, env_name, region, target, services, tform_path)
     spinner.stop()
     Bcolors.okgreen("Terraform updated successfully")        
     report_async({"command": f"dg env sync-tform"}, settings=settings, status="complete")
@@ -630,6 +631,7 @@ def env_destroy(env_name, prompt=False):
     settings = get_project_settings()
     project_name = settings["project"]["name"]
     target = settings["environments"][env_name]["target"]
+    region = settings["environments"][env_name]["region"]
     
     if target == "digger_paas":
         target = PAAS_TARGET
@@ -648,6 +650,7 @@ def env_destroy(env_name, prompt=False):
         "launch_type": "FARGATE",
         "target": target,
         "environment": env_name,
+        "region": region,
         "backend_bucket_name": "digger-terraform-states",
         "backend_bucket_region": "eu-west-1",
         "services": json.dumps(settings["services"])
