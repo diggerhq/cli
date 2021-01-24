@@ -36,7 +36,7 @@ jobs:
           draft: true
           prerelease: true
 
-  build-linux:
+  build-and-release-linux:
     needs: create-release
     runs-on: ubuntu-latest
 
@@ -65,7 +65,21 @@ jobs:
           asset_name: dg-linux-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
 
-  build-macos:
+      - name: Upload to S3
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Deploy to S3
+        run: >
+            aws s3 cp --acl public-read
+            dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+            s3://digger-releases/linux/dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+        working-directory: .
+
+
+  build-and-release-linuxmacos:
     needs: create-release
     runs-on: macos-latest
 
@@ -91,3 +105,16 @@ jobs:
           asset_path: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_name: dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
           asset_content_type: application/zip
+
+      - name: Upload to S3
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+      - name: Deploy to S3
+        run: >
+            aws s3 cp --acl public-read
+            dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+            s3://digger-releases/darwin/dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+        working-directory: .
