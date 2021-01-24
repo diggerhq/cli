@@ -114,8 +114,7 @@ jobs:
           aws-region: eu-west-1
       - name: Deploy to S3
         run: >
-            aws s3 cp
+            aws s3 cp --acl public-read
             dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
             s3://digger-releases/darwin/dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
-            --acl public-read
         working-directory: .
