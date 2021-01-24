@@ -72,13 +72,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - name: Deploy to S3
-        run: aws s3 cp --acl public-read \
-                  dg-linux-${{needs.create-release.outputs.tag_version}}.zip \
-                  s3://digger-releases/linux/dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+        run: >
+            aws s3 cp --acl public-read
+            dg-linux-${{needs.create-release.outputs.tag_version}}.zip
+            s3://digger-releases/linux/dg-linux-${{needs.create-release.outputs.tag_version}}.zip
         working-directory: .
 
 
-  build-and-release-macos:
+  build-and-release-linuxmacos:
     needs: create-release
     runs-on: macos-latest
 
@@ -112,7 +113,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
       - name: Deploy to S3
-        run: aws s3 cp --acl public-read \
-                       dg-darwin-${{needs.create-release.outputs.tag_version}}.zip \
-                       s3://digger-releases/darwin/dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+        run: >
+            aws s3 cp
+            dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+            s3://digger-releases/darwin/dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
+            --acl public-read
         working-directory: .
