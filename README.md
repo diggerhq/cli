@@ -1,7 +1,7 @@
 
 
 ## Installation
-
+- add an entry in your /etc/hosts to point digger.local -> 127.0.0.1
 - create virtualenv with python version > 3.7
 - `cp env/.env.example env/.env`
 - update endpoint in env/.env file to `http://18.222.22.175:8000`
