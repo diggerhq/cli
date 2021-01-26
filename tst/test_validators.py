@@ -36,10 +36,6 @@ class TestProjectValidator(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             project_name_validate("@!@£sdf")
 
-    def test_project_name_invalid4(self):
-        with self.assertRaises(ValueError) as context:
-            project_name_validate("a1")
-
 
 # TODO: parametarise tests
 class TestEnvironmentValidator(unittest.TestCase):
@@ -68,6 +64,3 @@ class TestEnvironmentValidator(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             env_name_validate("@!@£sdf")
 
-    def test_project_name_invalid4(self):
-        with self.assertRaises(ValueError) as context:
-            env_name_validate("a1")
