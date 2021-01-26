@@ -22,7 +22,7 @@ class TestProjectValidator(unittest.TestCase):
         project_name_validate("hiphen-ok")
 
     def test_project_name_valid4(self):
-        project_name_validate("0123nums-ok")
+        project_name_validate("0123numsok")
 
     def test_project_name_invalid(self):
         with self.assertRaises(ValueError) as context:
@@ -50,7 +50,7 @@ class TestEnvironmentValidator(unittest.TestCase):
         env_name_validate("hiphen-ok")
 
     def test_project_name_valid4(self):
-        env_name_validate("0123nums-ok")
+        env_name_validate("0123numsok")
 
     def test_project_name_invalid(self):
         with self.assertRaises(ValueError) as context:
