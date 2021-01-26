@@ -18,8 +18,11 @@ class TestProjectValidator(unittest.TestCase):
     def test_project_name_valid2(self):
         project_name_validate("exactlyten")
 
-    def test_project_name_valid4(self):
+    def test_project_name_valid3(self):
         project_name_validate("hiphen-ok")
+
+    def test_project_name_valid4(self):
+        project_name_validate("0123numsok")
 
     def test_project_name_invalid(self):
         with self.assertRaises(ValueError) as context:
@@ -33,10 +36,6 @@ class TestProjectValidator(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             project_name_validate("@!@£sdf")
 
-    def test_project_name_invalid4(self):
-        with self.assertRaises(ValueError) as context:
-            project_name_validate("a1")
-
 
 # TODO: parametarise tests
 class TestEnvironmentValidator(unittest.TestCase):
@@ -47,8 +46,11 @@ class TestEnvironmentValidator(unittest.TestCase):
     def test_project_name_valid2(self):
         env_name_validate("exactlyten")
 
-    def test_project_name_valid4(self):
+    def test_project_name_valid3(self):
         env_name_validate("hiphen-ok")
+
+    def test_project_name_valid4(self):
+        env_name_validate("0123numsok")
 
     def test_project_name_invalid(self):
         with self.assertRaises(ValueError) as context:
@@ -62,6 +64,3 @@ class TestEnvironmentValidator(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             env_name_validate("@!@£sdf")
 
-    def test_project_name_invalid4(self):
-        with self.assertRaises(ValueError) as context:
-            env_name_validate("a1")
