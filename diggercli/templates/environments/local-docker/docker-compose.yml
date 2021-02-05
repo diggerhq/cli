@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   {% for service in services -%}
-  {{service.name}}:
+  {{service.service_name}}:
     {% if service.env_files -%}
     env_file:
       {% for envfile in service.env_files -%}
@@ -10,11 +10,11 @@ services:
       {%- endfor %}
     {%- endif %}
     build:
-      context: {{service.path}}
-      dockerfile: {{service.dockerfile}}
+      context: {{service.path_absolute}}
+      dockerfile: {{service.dockerfile_absolute}}
     volumes:
       - type: bind
-        source: {{service.path}}
+        source: {{service.path_absolute}}
         target: /code
     {% if service.dependencies or service.resources -%}
     depends_on:
@@ -26,9 +26,9 @@ services:
       {%- endfor %}
     {%- endif %}
     restart: always
-    image: {{service.name}}
+    image: {{service.service_name}}
     ports:
-      - {{service.port}}
+      - {{service.container_port}}
     {% if service.command -%}
     command: {{service.command}}
     {%- endif %}
