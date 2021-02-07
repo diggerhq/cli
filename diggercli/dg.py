@@ -163,7 +163,7 @@ def retreive_aws_creds(projectName, environment, prompt=True):
 def generate_docker_compose_file():
     settings = get_project_settings()
     services = settings["services"].values()
-    composeFile = pkg_resources.open_text("templates.environments.local-docker", 'docker-compose.yml')
+    composeFile = pkg_resources.open_text("diggercli.templates.environments.local-docker", 'docker-compose.yml')
     composeContent = composeFile.read()
     composeTemplate = Template(composeContent)
 
@@ -171,9 +171,9 @@ def generate_docker_compose_file():
     for service in settings["services"].values():
         for resource in service["resources"].values():
             env_path = "digger-master/local-docker/"
-            env_file = f"{service['name']}_{resource['name']}.env"
+            env_file = f"{service['service_name']}_{resource['name']}.env"
             # assuming its a database
-            envFile = pkg_resources.open_text("templates.environments.local-docker", f".{resource['engine'].lower()}.env")
+            envFile = pkg_resources.open_text("diggercli.templates.environments.local-docker", f".{resource['engine'].lower()}.env")
             envContent = envFile.read()
             envTemplate = Template(envContent)
             envContentRendered = envTemplate.render({
@@ -191,6 +191,11 @@ def generate_docker_compose_file():
             service["env_files"] = service.get("env_files", [])
             service["env_files"].append(env_file)
 
+    # including absolute dockerfile path
+    for service in settings["services"].values():
+        service["dockerfile_absolute"] = os.path.abspath(service["dockerfile"])
+        service["path_absolute"] = os.path.abspath(service["path"])
+        
     composeContentRendered = composeTemplate.render({
         "services": services
     })
