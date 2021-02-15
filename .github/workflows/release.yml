@@ -130,6 +130,13 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: initialize s3
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
       - name: upload version
         run: >
             echo ${{needs.create-release.outputs.tag_version}} >> STABLE-VERSION &&
