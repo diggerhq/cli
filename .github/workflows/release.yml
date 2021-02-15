@@ -124,15 +124,13 @@ jobs:
       - create-release
       - build-and-release-linux
       - build-and-release-linuxmacos
-      
+
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v1
 
       - name: upload version
-
-      - name: Deploy to S3
         run: >
             echo ${{needs.create-release.outputs.tag_version}} >> STABLE-VERSION &&
             aws s3 cp --acl public-read
