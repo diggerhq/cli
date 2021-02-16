@@ -29,7 +29,11 @@ except ImportError:
 from PyInquirer import prompt as pyprompt, Separator
 from diggercli import api
 from diggercli.fileio import download_terraform_files
-from diggercli.auth import fetch_github_token, require_auth
+from diggercli.auth import (
+    fetch_github_token,
+    require_auth,
+    fetch_github_token_with_cli_callback
+)
 from diggercli.exceptions import CouldNotDetermineDockerLocation
 from diggercli.validators import ProjectNameValidator, env_name_validate
 from diggercli.transformers import transform_service_name
@@ -311,6 +315,12 @@ def auth():
     # report_async({"command": f"dg auth"}, status="start")    
     fetch_github_token()
     report_async({"command": f"dg auth"}, status="complete")
+
+@cli.command()
+def init():
+    # report_async({"command": f"dg auth"}, status="start")    
+    fetch_github_token_with_cli_callback()
+    report_async({"command": f"dg init"}, status="complete")
 
 
 @cli.group()
