@@ -35,6 +35,7 @@ from diggercli.auth import (
     fetch_github_token_with_cli_callback
 )
 from diggercli.exceptions import CouldNotDetermineDockerLocation
+from diggercli import diggerconfig
 from diggercli.validators import ProjectNameValidator, env_name_validate
 from diggercli.transformers import transform_service_name
 from diggercli._version import __version__
@@ -318,9 +319,35 @@ def auth():
 
 @cli.command()
 def init():
-    # report_async({"command": f"dg auth"}, status="start")    
-    fetch_github_token_with_cli_callback()
-    report_async({"command": f"dg init"}, status="complete")
+    # report_async({"command": f"dg auth"}, status="start")
+    spinner = Halo(text="Detecting project type", spinner='dots')
+    spinner.start()
+    print()
+    currentPath = os.getcwd()
+    detector = diggerconfig.ProjectDetector()
+    service = detector.detect_service(currentPath)
+    spinner.stop()
+
+    if service.type == detector.UNKNOWN:
+        Bcolors.fail("unknown Project type, please see following link for digger.yml authoring help")
+        Bcolors.okgreen("https://docs.digger.dev/Authoring-digger-yml-configs-1e65111713504d68b959e38227b70216")
+        return
+
+    if service.type == detector.DIGGER:
+        Bcolors.warn("digger configuration found, press any key to proceed with initial deployment")
+        input()
+        settings = diggerconfig.Generator.load_yaml()
+        fetch_github_token_with_cli_callback()
+        return
+
+    Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
+    services = [service,]
+    generator = diggerconfig.Generator(services)
+    generator.dump_yaml()
+    Bcolors.okgreen("digger.yml created successfully, please review and make sure settings are fine")
+    Bcolors.warn("run dg init once again to create first deployment")
+
+    # report_async({"command": f"dg init"}, status="complete")
 
 
 @cli.group()
