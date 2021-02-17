@@ -21,19 +21,19 @@ class ProjectDetector:
         files = os.listdir(path)
         
         if "digger.yml" in files:
-            return Service(self.DIGGER, os.path.join(path, "digger.yml"))
+            return Service(self.DIGGER, "digger.yml")
         return False
 
     def docker_test(self, path):
         files = os.listdir(path)
         if "dockerfile" in list(map(lambda x: x.lower(), files)):
-            return Service(self.DOCKER, os.path.join(path, "Dockerfile"))
+            return Service(self.DOCKER,  "Dockerfile")
         return False
 
     def javascript_test(self, path):
         files = os.listdir(path)
         if "package.json" in files:
-            return Service(self.FRONTEND, os.path.join(path, "package.json"))
+            return Service(self.FRONTEND, "package.json")
         return False
 
     def detect_service(self, path):
