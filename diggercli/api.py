@@ -8,15 +8,19 @@ from diggercli.utils.pprint import Bcolors
 
 
 def do_api(method, endpoint, data, auth_token=None):
+    if auth_token is not None:
+        headers = {
+            "Authorization": f"Token {auth_token}"
+        }
+    else:
+        headers={}
     response = requests.request(
         method=method, 
         url=endpoint, 
         data=data, 
-        headers={
-            "Authorization": f"Token {auth_token}"
-        }
+        headers=headers
     )
-    if response.status_code != 200:
+    if response.status_code//100 != 2:
         Bcolors.fail("Request failed")
         raise ApiRequestException(response.content)
     return response
@@ -28,6 +32,13 @@ def check_project_name(projectName):
         f"{BACKEND_ENDPOINT}/api/check_project_name",
         {"project_name": projectName},
         auth_token=token
+    )
+
+def generate_tmp_project(data):
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/tmpProjects/",
+        data
     )
 
 def create_infra(data):

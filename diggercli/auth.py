@@ -17,14 +17,15 @@ def save_github_token(token):
     f.write(token)
     f.close()
 
-def fetch_github_token_with_cli_callback():
+def fetch_github_token_with_cli_callback(temporaryProjectId):
     """
         Simlar to fetch_github_token but also spins up a local
         server to receive the callback from the webui
     """
     print('starting server ...')
     port = random.randint(8000, 60000)
-    webbrowser.open(f"{GITHUB_LOGIN_ENDPOINT}?redirect_uri={WEBAPP_ENDPOINT}&cli_callback=http://localhost:{port}")
+    webapp_redirect = f"{WEBAPP_ENDPOINT}#/init/{temporaryProjectId}"
+    webbrowser.open(f"{GITHUB_LOGIN_ENDPOINT}?redirect_uri={webapp_redirect}&cli_callback=http://localhost:{port}")
     start_server(port, save_github_token)
 
 def fetch_github_token():

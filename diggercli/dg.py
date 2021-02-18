@@ -29,6 +29,7 @@ except ImportError:
 from PyInquirer import prompt as pyprompt, Separator
 from diggercli import api
 from diggercli.fileio import download_terraform_files
+from diggercli.projects import create_temporary_project
 from diggercli.auth import (
     fetch_github_token,
     require_auth,
@@ -334,10 +335,14 @@ def init():
         return
 
     if service.type == detector.DIGGER:
-        Bcolors.warn("digger configuration found, press any key to proceed with initial deployment")
+        Bcolors.warn("digger configuration found")
+        Bcolors.warn("Generating project ID")
+        temporaryProjectId = create_temporary_project()
+        Bcolors.okgreen("Project generation successful")
+        Bcolors.warn("press any key to proceed with initial deployment")
         input()
         settings = diggerconfig.Generator.load_yaml()
-        fetch_github_token_with_cli_callback()
+        fetch_github_token_with_cli_callback(temporaryProjectId)
         return
 
     Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
