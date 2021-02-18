@@ -334,23 +334,31 @@ def init():
         Bcolors.okgreen("https://docs.digger.dev/Authoring-digger-yml-configs-1e65111713504d68b959e38227b70216")
         return
 
-    if service.type == detector.DIGGER:
-        Bcolors.warn("digger configuration found")
-        Bcolors.warn("Generating project ID")
-        temporaryProjectId = create_temporary_project()
-        Bcolors.okgreen("Project generation successful")
-        Bcolors.warn("press any key to proceed with initial deployment")
-        input()
-        settings = diggerconfig.Generator.load_yaml()
-        fetch_github_token_with_cli_callback(temporaryProjectId)
-        return
+    if service.type != detector.DIGGER:
+        # generating digger.yml
+        Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
+        services = [service,]
+        generator = diggerconfig.Generator(services)
+        generator.dump_yaml()
+        Bcolors.okgreen("digger.yml created successfully, please review and make sure settings are fine")
 
-    Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
-    services = [service,]
-    generator = diggerconfig.Generator(services)
-    generator.dump_yaml()
-    Bcolors.okgreen("digger.yml created successfully, please review and make sure settings are fine")
-    Bcolors.warn("run dg init once again to create first deployment")
+    # digger.yml confirmation
+    Bcolors.warn("digger configuration found")
+    Bcolors.warn("Generating project ID")
+    temporaryProjectId = create_temporary_project()
+    Bcolors.okgreen("Project generation successful")
+
+    print("--- digger.yml ---")
+    print(open("digger.yml", "r").read())
+    print("-------")
+    Bcolors.warn("Please read the configuration and confirm it is correct.")
+    Bcolors.warn("Proceed with initial deployment (y/n)?")
+    answer = input()
+    if answer.lower() != "y": 
+        print("Modify the digger.yml and run dg init try again")
+        return
+    settings = diggerconfig.Generator.load_yaml()
+    fetch_github_token_with_cli_callback(temporaryProjectId)
 
     # report_async({"command": f"dg init"}, status="complete")
 
