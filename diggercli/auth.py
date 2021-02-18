@@ -3,6 +3,7 @@ import webbrowser
 import random
 import click
 import requests
+import urllib
 from functools import update_wrapper
 from diggercli.utils.pprint import Bcolors
 from diggercli.constants import (
@@ -24,8 +25,9 @@ def fetch_github_token_with_cli_callback(temporaryProjectId):
     """
     print('starting server ...')
     port = random.randint(8000, 60000)
-    webapp_redirect = f"{WEBAPP_ENDPOINT}#/init/{temporaryProjectId}"
-    webbrowser.open(f"{GITHUB_LOGIN_ENDPOINT}?redirect_uri={webapp_redirect}&cli_callback=http://localhost:{port}")
+    cli_callback = urllib.parse.quote_plus(f"http://localhost:{port}")
+    webapp_redirect = urllib.parse.quote_plus(f"{WEBAPP_ENDPOINT}#/init/{temporaryProjectId}")
+    webbrowser.open(f"{GITHUB_LOGIN_ENDPOINT}?redirect_uri={webapp_redirect}&cli_callback={cli_callback}")
     start_server(port, save_github_token)
 
 def fetch_github_token():
