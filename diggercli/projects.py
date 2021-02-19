@@ -16,3 +16,8 @@ def create_temporary_project():
     f = open(".digger/temp.json", "w")
     json.dump({"temp_project_id": tmpId}, f)
     return tmpId
+
+def get_temporary_project_id():
+    f = open(".digger/temp.json")
+    content = json.load(f)
+    return content["temp_project_id"]

@@ -41,6 +41,15 @@ def generate_tmp_project(data):
         data
     )
 
+def get_signed_url_for_code_upload(uuid, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/tmpProjects/{uuid}/code_upload_sign/",
+        data,
+        auth_token=token
+    )    
+
 def create_infra(data):
     token = get_github_token()
     return do_api(

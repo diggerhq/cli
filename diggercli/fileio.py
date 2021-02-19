@@ -40,3 +40,35 @@ def download_terraform_files(projectName, environment, region, target, services,
     with zipfile.ZipFile(tmpZipPath, 'r') as zip_ref:
         zip_ref.extractall(destinationDir)
 
+
+def zipdir(path, ziph):
+    # ziph is zipfile handle
+    lenDirPath = len(path)
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            filePath = os.path.join(root, file)
+            # the second argument ensures accurate tree structure in the zip file
+            ziph.write(filePath, filePath[lenDirPath:])
+
+def upload_code(tmp_project_uuid, service_name, path):
+
+    response = api.get_signed_url_for_code_upload(tmp_project_uuid, {
+        "service_name": service_name
+    })
+    content = json.loads(response.content)
+
+    # create the zip path
+    zip_path = tempfile.mkdtemp()
+    zip_path = os.path.join(zip_path, "code.zip")
+    ziph = zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED)
+    zipdir(path, ziph)
+    ziph.close()
+
+    with open(zip_path, 'rb') as zipf:
+        # uploading the object
+        object_name = content["fields"]["key"]
+        files = {'file': (object_name, zipf)}
+        upload_response = requests.post(content['url'], data=content['fields'], files=files)
+        print(upload_response.status_code)
+        assert upload_response.status_code//100 == 2
+
