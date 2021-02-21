@@ -1,11 +1,18 @@
+import os
 import json
 import requests
 from requests import Request, Session
-from diggercli.auth import get_github_token
-from diggercli.constants import BACKEND_ENDPOINT
+from diggercli.constants import BACKEND_ENDPOINT, DIGGERTOKEN_FILE_PATH
 from diggercli.exceptions import ApiRequestException
 from diggercli.utils.pprint import Bcolors
 
+
+def get_github_token():
+    if not os.path.exists(DIGGERTOKEN_FILE_PATH):
+        return None
+    f = open(DIGGERTOKEN_FILE_PATH, 'r')
+    token = f.readline().strip()
+    return token
 
 def do_api(method, endpoint, data, auth_token=None):
     if auth_token is not None:

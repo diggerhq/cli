@@ -1,10 +1,14 @@
 import os
+import subprocess
 import json
 import zipfile
 import time
+from pathlib import Path
+
 import requests
 import tempfile
 from diggercli import api
+from diggercli.exceptions import FileTooLargeError
 
 
 def download_file(url, path):
@@ -41,8 +45,9 @@ def download_terraform_files(projectName, environment, region, target, services,
         zip_ref.extractall(destinationDir)
 
 
-def zipdir(path, ziph):
+def zipdir(ziph):
     # ziph is zipfile handle
+    path = os.getcwd()
     lenDirPath = len(path)
     for root, dirs, files in os.walk(path):
         for file in files:
@@ -50,21 +55,50 @@ def zipdir(path, ziph):
             # the second argument ensures accurate tree structure in the zip file
             ziph.write(filePath, filePath[lenDirPath:])
 
-def upload_code(tmp_project_uuid, service_name, path):
+def git_zip(zippath):
+    subprocess.run([
+        "git", 
+        "archive", 
+        "--format", "zip",  
+        "--output", zippath, 
+        "master",
+    ], check=True)
+
+def git_exists():
+    devnull = open(os.devnull, 'w')
+    try:
+        subprocess.run(["git", "status"], stdout=devnull, stderr=devnull, check=True)
+        return True
+    except subprocess.CalledProcessError as grepexc:                                                                                                   
+        return False
+
+def git_zip_or_zipdir(zippath):
+
+    if ".git" in os.listdir() and git_exists():
+        git_zip(zippath)
+        return
+
+    # create the zip path
+    ziph = zipfile.ZipFile(zippath, "w", compression=zipfile.ZIP_DEFLATED)
+    zipdir(ziph)
+    ziph.close()
+
+def upload_code(tmp_project_uuid, service_name):
 
     response = api.get_signed_url_for_code_upload(tmp_project_uuid, {
         "service_name": service_name
     })
     content = json.loads(response.content)
 
-    # create the zip path
-    zip_path = tempfile.mkdtemp()
-    zip_path = os.path.join(zip_path, "code.zip")
-    ziph = zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED)
-    zipdir(path, ziph)
-    ziph.close()
+    zippath = tempfile.mkdtemp()
+    zippath = os.path.join(zippath, "code.zip")
+    git_zip_or_zipdir(zippath)
 
-    with open(zip_path, 'rb') as zipf:
+    file_size  = Path(zippath).stat().st_size
+    if file_size > 100 * 1024  *  1024:
+        raise FileTooLargeError("Code size exceeds 100MB")
+
+    with open(zippath, 'rb') as zipf:
         # uploading the object
         object_name = content["fields"]["key"]
         files = {'file': (object_name, zipf)}

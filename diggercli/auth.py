@@ -29,7 +29,7 @@ def save_token_and_upload_code(token):
     key, service = next(iter(settings["services"].items()))
     path = os.path.abspath("./")
     tmp_project_uuid = get_temporary_project_id()
-    upload_code(tmp_project_uuid, service["service_name"], path)
+    upload_code(tmp_project_uuid, service["service_name"])
 
 def fetch_github_token_with_cli_callback(temporaryProjectId):
     """
@@ -62,10 +62,3 @@ def require_auth(func):
         # return ctx.invoke(func, ctx.obj, *args, **kwargs)
         return func(*args, **kwargs)
     return update_wrapper(wrapper, func)
-
-def get_github_token():
-    if not os.path.exists(DIGGERTOKEN_FILE_PATH):
-        return None
-    f = open(DIGGERTOKEN_FILE_PATH, 'r')
-    token = f.readline().strip()
-    return token
