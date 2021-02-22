@@ -5,4 +5,6 @@ class CouldNotDetermineDockerLocation(Exception):
 
 class ApiRequestException(Exception):
     pass
-    
+
+class FileTooLargeError(Exception):
+    pass
