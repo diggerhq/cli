@@ -415,7 +415,8 @@ def env_create(env_name, target=None, region=None, prompt=True):
         answers = pyprompt(questions)
         target_key = answers["target"]
         target = targets[target_key]
-
+    else:
+        target_key = target
 
     if target_key not in ["AWS ECS Fargate", "Digger Paas"]:
         Bcolors.fail("This option is currently unsupported! Please try again")
