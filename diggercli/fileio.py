@@ -51,6 +51,7 @@ def zipdir(ziph):
     lenDirPath = len(path)
     for root, dirs, files in os.walk(path):
         for file in files:
+            if root.endswith("node_modules"): continue
             filePath = os.path.join(root, file)
             # the second argument ensures accurate tree structure in the zip file
             ziph.write(filePath, filePath[lenDirPath:])
@@ -92,7 +93,10 @@ def upload_code(tmp_project_uuid, service_name):
 
     zippath = tempfile.mkdtemp()
     zippath = os.path.join(zippath, "code.zip")
-    git_zip_or_zipdir(zippath)
+    # create the zip path
+    ziph = zipfile.ZipFile(zippath, "w", compression=zipfile.ZIP_DEFLATED)
+    zipdir(ziph)
+    ziph.close()
 
     file_size  = Path(zippath).stat().st_size
     if file_size > 100 * 1024  *  1024:
