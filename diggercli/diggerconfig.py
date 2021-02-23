@@ -63,12 +63,9 @@ class ProjectDetector:
 
 class Generator():
 
-    def __init__(self, project_name, services):
+    def __init__(self, services):
         self.state = {
             "version": "1.0.0",
-            "project": {
-                "name": project_name
-            },
             "services": {}
         }
         self.services = services

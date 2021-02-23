@@ -337,7 +337,7 @@ def init():
         # generating digger.yml
         Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
         services = [service,]
-        generator = diggerconfig.Generator(project_name, services)
+        generator = diggerconfig.Generator(services)
         generator.dump_yaml()
         Bcolors.okgreen("digger.yml created successfully, please review and make sure settings are fine")
 
@@ -389,9 +389,10 @@ def env_list():
 @click.option("--region", "-r", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
+@click.option("--project-name", required=False)
 @click.option("--region", "-r", required=False)
 @click.option('--prompt/--no-prompt', default=True)
-def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None, prompt=True):
+def env_create(env_name, target=None, project_name=None, region=None, aws_key=None, aws_secret=None, prompt=True):
 
     try:
         env_name_validate(env_name)
@@ -402,7 +403,8 @@ def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None
     targets = get_targets()
     settings = get_project_settings()
     report_async({"command": f"dg env create"}, settings=settings, status="start")
-    project_name = settings["project"]["name"]
+    if project_name is None:
+        project_name = settings["project"]["name"]
 
     if target is None:
         questions = [
@@ -544,8 +546,9 @@ def env_sync_tform(env_name):
 
 @env.command(name="build")
 @click.argument("env_name", nargs=1, required=True)
+@click.option("--project-name", required=False)
 @click.option('--service', default=None)
-def env_build(env_name, service):
+def env_build(env_name, service, project_name=None, ):
     action = "build"
     settings = get_project_settings()
 
@@ -567,7 +570,8 @@ def env_build(env_name, service):
         service_name = service
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-    project_name = settings["project"]["name"]
+    if project_name is None:
+        project_name = settings["project"]["name"]
     docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]    
     subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
     subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:latest", f"{docker_registry}:latest"]).communicate()
@@ -576,10 +580,11 @@ def env_build(env_name, service):
 @env.command(name="push")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
+@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_push(env_name, service, aws_key=None, aws_secret=None, prompt=False):
+def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
     action = "push"
     settings = get_project_settings()    
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -601,7 +606,8 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, prompt=False):
     else:
         service_name = service
 
-    project_name = settings["project"]["name"]
+    if project_name is None:
+        project_name = settings["project"]["name"]
     docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]
     region = settings["environments"][env_name]["region"]
     registry_endpoint = docker_registry.split("/")[0]
@@ -617,10 +623,11 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, prompt=False):
 @env.command(name="deploy")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
+@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_deploy(env_name, service, aws_key=None, aws_secret=None, prompt=False):
+def env_deploy(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -647,7 +654,8 @@ def env_deploy(env_name, service, aws_key=None, aws_secret=None, prompt=False):
     lb_url = settings["environments"][env_name]["services"][service_key]["lb_url"]
     docker_registry = settings["environments"][env_name]["services"][service_key]["docker_registry"]
     region = settings["environments"][env_name]["region"]
-    project_name = settings["project"]["name"]
+    if project_name is None:
+        project_name = settings["project"]["name"]
     
     if target == "digger_paas":
         target = PAAS_TARGET
