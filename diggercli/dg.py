@@ -418,13 +418,13 @@ def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None
         answers = pyprompt(questions)
         target_key = answers["target"]
         target = targets[target_key]
+
+        if target_key not in ["AWS ECS Fargate", "Digger Paas"]:
+            Bcolors.fail("This option is currently unsupported! Please try again")
+            return
     else:
-        target_key = target
-
-
-    if target_key not in ["AWS ECS Fargate", "Digger Paas"]:
-        Bcolors.fail("This option is currently unsupported! Please try again")
-        return
+        # use target from cli arg
+        target = target
 
     if region is None:
         questions = [
