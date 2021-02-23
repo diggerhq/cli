@@ -60,7 +60,7 @@ PROJECT = {}
 
 
 def digger_yaml():
-    return "digger-master/digger.yml"
+    return "digger.yml"
 
 def get_project_settings():
     return yload(open(digger_yaml()), Loader=Loader)
@@ -302,7 +302,6 @@ class SpecialEpilog(click.Group):
                 expose_value=False, callback=print_version)
 def cli():
 
-    Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
     Path(AWS_HOME_PATH).mkdir(parents=True, exist_ok=True)
 
 @cli.command()
@@ -338,7 +337,7 @@ def init():
         # generating digger.yml
         Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
         services = [service,]
-        generator = diggerconfig.Generator(services)
+        generator = diggerconfig.Generator(project_name, services)
         generator.dump_yaml()
         Bcolors.okgreen("digger.yml created successfully, please review and make sure settings are fine")
 
