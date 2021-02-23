@@ -135,7 +135,7 @@ def get_env_vars(envName, serviceName):
     envVars.update(serviceEnvVars)
     return envVars
 
-def retreive_aws_creds(projectName, environment, prompt=True):
+def retreive_aws_creds(projectName, environment, aws_key=None, aws_secret=None, prompt=True):
     diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
     profileName = f"{projectName}-{environment}"
     diggerconfig = configparser.ConfigParser()
@@ -144,8 +144,8 @@ def retreive_aws_creds(projectName, environment, prompt=True):
     if profileName not in diggerconfig:
         diggerconfig[profileName] = {}
     
-    currentAwsKey = diggerconfig[profileName].get("aws_access_key_id", None)
-    currentAwsSecret = diggerconfig[profileName].get("aws_secret_access_key", None)
+    currentAwsKey = diggerconfig[profileName].get("aws_access_key_id", aws_key)
+    currentAwsSecret = diggerconfig[profileName].get("aws_secret_access_key", aws_secret)
 
     if prompt or (currentAwsKey is None or currentAwsSecret is None):
         answers = prompt_for_aws_keys(currentAwsKey, currentAwsSecret)
@@ -388,8 +388,11 @@ def env_list():
 @click.argument("env_name", nargs=1, required=True)
 @click.option("--target", "-t", required=False)
 @click.option("--region", "-r", required=False)
+@click.option("--aws-key", required=False)
+@click.option("--aws-secret", required=False)
+@click.option("--region", "-r", required=False)
 @click.option('--prompt/--no-prompt', default=True)
-def env_create(env_name, target=None, region=None, prompt=True):
+def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None, prompt=True):
 
     try:
         env_name_validate(env_name)
@@ -447,7 +450,7 @@ def env_create(env_name, target=None, region=None, prompt=True):
             "aws_secret": None
         }
     else:
-        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
 
 
     # spin(2, 'Loading creds from ~/.aws/creds')
@@ -574,8 +577,10 @@ def env_build(env_name, service):
 @env.command(name="push")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
+@click.option("--aws-key", required=False)
+@click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_push(env_name, service, prompt=False):
+def env_push(env_name, service, aws_key=None, aws_secret=None, prompt=False):
     action = "push"
     settings = get_project_settings()    
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -601,7 +606,7 @@ def env_push(env_name, service, prompt=False):
     docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]
     region = settings["environments"][env_name]["region"]
     registry_endpoint = docker_registry.split("/")[0]
-    credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
     os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
     os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
     proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
@@ -613,8 +618,10 @@ def env_push(env_name, service, prompt=False):
 @env.command(name="deploy")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
+@click.option("--aws-key", required=False)
+@click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_deploy(env_name, service, prompt=False):
+def env_deploy(env_name, service, aws_key=None, aws_secret=None, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -648,7 +655,7 @@ def env_deploy(env_name, service, prompt=False):
         awsKey = None
         awsSecret = None
     else:
-        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
 
@@ -676,8 +683,10 @@ def env_deploy(env_name, service, prompt=False):
 
 @env.command(name="destroy")
 @click.argument("env_name", nargs=1, required=True)
+@click.option("--aws-key", required=False)
+@click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_destroy(env_name, prompt=False):
+def env_destroy(env_name, aws_key=None, aws_secret=None, prompt=False):
     action = "destroy"
     report_async({"command": f"dg env {action}"}, status="start")
 
@@ -704,7 +713,7 @@ def env_destroy(env_name, prompt=False):
         awsKey = None
         awsSecret = None
     else:
-        credentials = retreive_aws_creds(project_name, env_name, prompt=prompt)
+        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
 
