@@ -371,14 +371,23 @@ def env():
 
 
 @env.command(name="list")
-def env_list():
+@click.option("--project-name", required=False)
+def env_list(project_name=None):
     settings = get_project_settings()
-
     report_async({"command": f"dg env list"}, settings=settings, status="start")
 
-    spin(1, "Loading environment list ...")
-    for env in settings["environments"].keys():
-        print(f">> {env}")
+    if project_name is None:
+        if "project" not in settings:
+            Bcolors.fail("could not load project name from settings")
+            Bcolors.fail("please pass project via --project-name parameter")
+            sys.exit(1)
+        project_name = settings["project"]["name"]
+
+    response = api.get_project_environments(project_name)
+    environments = json.loads(response.content)["results"]
+
+    for env in environments:
+        print(f">> {env['name']}")
 
     report_async({"command": f"dg env list"}, settings=settings, status="complete")
 
@@ -715,7 +724,7 @@ def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prom
     settings = get_project_settings()
     if project_name is None:
         project_name = settings["project"]["name"]
-        
+
     target = settings["environments"][env_name]["target"]
     region = settings["environments"][env_name]["region"]
     

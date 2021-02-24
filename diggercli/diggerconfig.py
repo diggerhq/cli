@@ -78,6 +78,7 @@ class Generator():
     @classmethod
     def load_yaml(cls):
         return yload(open("digger.yml"), Loader=Loader)
+        
 
     def update_state(self):
         for service in self.services:

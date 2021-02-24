@@ -57,6 +57,15 @@ def get_signed_url_for_code_upload(uuid, data):
         auth_token=token
     )    
 
+def get_project_environments(projectName):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/",
+        {},
+        auth_token=token
+    )
+
 def create_infra(data):
     token = get_github_token()
     return do_api(
