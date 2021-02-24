@@ -118,3 +118,29 @@ jobs:
             dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
             s3://digger-releases/darwin/dg-darwin-${{needs.create-release.outputs.tag_version}}.zip
         working-directory: .
+
+  update-latest-stable-version:
+    needs: 
+      - create-release
+      - build-and-release-linux
+      - build-and-release-linuxmacos
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: initialize s3
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: upload version
+        run: >
+            echo ${{needs.create-release.outputs.tag_version}} >> STABLE-VERSION &&
+            aws s3 cp --acl public-read
+            STABLE-VERSION
+            s3://digger-releases/STABLE-VERSION
+        working-directory: .
