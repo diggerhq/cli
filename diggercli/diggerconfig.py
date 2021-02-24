@@ -78,7 +78,7 @@ class Generator():
     @classmethod
     def load_yaml(cls):
         return yload(open("digger.yml"), Loader=Loader)
-        
+
 
     def update_state(self):
         for service in self.services:
@@ -107,7 +107,7 @@ class Generator():
             # "env_files": [],
             "publicly_accissible": True,
             "type": "container",
-            "container_port": 8080,
+            "container_port": 3000,
             "health_check": "/",
             "dockerfile": service.configpath,
             "resources": {},
