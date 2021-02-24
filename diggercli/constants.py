@@ -10,6 +10,15 @@ def get_base_path():
     else:
         return os.path.abspath(os.path.dirname(__file__))
 
+PG_SPLASH = """
+        🚀 Digger: Join our slack 🚀
+        We are a new project and still rough around
+        the edges. If you run into any issues we are
+        happy to help you out. You can reach the founders
+        directly on slack.     
+"""
+SLACK_INVITE_LINK = "https://join.slack.com/t/diggertalk/shared_invite/zt-mturfg4i-SI6_F52vtwY3APjaA5hv7A"
+
 DIGGER_SPLASH = """
         🚀 Digger: Deploy with confidence 🚀
 

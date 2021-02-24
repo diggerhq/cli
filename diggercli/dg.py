@@ -43,6 +43,8 @@ from diggercli._version import __version__
 from diggercli.constants import (
     PAAS_TARGET,
     DIGGER_SPLASH,
+    PG_SPLASH,
+    SLACK_INVITE_LINK,
     DIGGERHOME_PATH,
     BACKEND_ENDPOINT,
     GITHUB_LOGIN_ENDPOINT,
@@ -361,7 +363,10 @@ def init():
 
     # report_async({"command": f"dg init"}, status="complete")
 
-
+@cli.command()
+def pg():
+    print(PG_SPLASH)
+    print(f"You can join here: {SLACK_INVITE_LINK}")
 @cli.group()
 @require_auth
 def env():
@@ -1094,4 +1099,9 @@ def resource_create(resource_type, name=None):
 
 # exec main function if frozen binary   
 if getattr(sys, 'frozen', False):
-    cli(sys.argv[1:])
+    try:
+        cli(sys.argv[1:])
+    except Exception as e:
+        print(PG_SPLASH)
+        print(SLACK_INVITE_LINK)
+        raise e
