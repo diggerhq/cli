@@ -493,6 +493,7 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
 
     spinner.stop()
 
+    settings["environments"] = settings.get("environments", {})
     environments = settings["environments"]
     environments[env_name] = {
         "target": target,
@@ -690,10 +691,11 @@ def env_deploy(env_name, service, project_name=None, aws_key=None, aws_secret=No
 
 @env.command(name="destroy")
 @click.argument("env_name", nargs=1, required=True)
+@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_destroy(env_name, aws_key=None, aws_secret=None, prompt=False):
+def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prompt=False):
     action = "destroy"
     report_async({"command": f"dg env {action}"}, status="start")
 
@@ -711,7 +713,9 @@ def env_destroy(env_name, aws_key=None, aws_secret=None, prompt=False):
         return
 
     settings = get_project_settings()
-    project_name = settings["project"]["name"]
+    if project_name is None:
+        project_name = settings["project"]["name"]
+        
     target = settings["environments"][env_name]["target"]
     region = settings["environments"][env_name]["region"]
     
