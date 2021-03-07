@@ -213,7 +213,6 @@ def generate_docker_compose_file():
     composeFile.close()
 
 def init_project(project_name):
-
         Path("digger-master").mkdir(parents=True, exist_ok=True)
 
         settings = OrderedDict()
@@ -830,6 +829,10 @@ def project_init(name=None):
     action = "init"
     report_async({"command": f"dg project init"}, status="start")
 
+    if os.path.exists("digger.yml"):
+        Bcolors.fail("digger.yml found, cannot initialize project again")
+        sys.exit(1)
+
     if name is None:
         defaultProjectName = os.path.basename(os.getcwd())
         questions = [
@@ -849,7 +852,7 @@ def project_init(name=None):
         project_name = name
 
     # This will throw error if project name is invalid (e.g. project exists)
-    api.check_project_name(project_name)
+    api.create_project(project_name)
 
     spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
     spinner.start()
