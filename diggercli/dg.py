@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+from pprint import pprint
 import re
 from datetime import datetime
 import threading
@@ -519,32 +520,21 @@ def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None
 
 @env.command(name="apply")
 @click.argument("env_name", nargs=1, required=True)
-@click.option('--prompt/--no-prompt', default=True)
-def env_apply(env_name, prompt=True):
+def env_apply(env_name):
 
-    Bcolors.okgreen("Environment succesfully created")
-
-    create_infra_api = lambda: api.create_infra({
-        "aws_key": credentials["aws_key"],
-        "aws_secret": credentials["aws_secret"],
-        "project_name": project_name,
-        "services": json.dumps(settings["services"]),
-        "environment": env_name,
-        "launch_type": "FARGATE",
-        "target": target,
-        "backend_bucket_name": "digger-terraform-states",
-        "backend_bucket_region": "eu-west-1",
-        "backend_bucket_key": f"{project_name}/project",
-        "region": region,
-    })
-    response = create_infra_api()
+    settings = get_project_settings()
+    report_async({"command": f"dg env apply"}, settings=settings, status="start")
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    envPk = envDetails["pk"]
+    response = api.apply_environment(projectName, envPk)
     job = json.loads(response.content)
 
     # loading until infra status is complete
     spinner = Halo(text="creating infrastructure ...", spinner="dots")
     spinner.start()
     while True:
-        statusResponse = api.get_job_info(job['job_id'])
+        statusResponse = api.get_deployment_info(projectName, job['job_id'])
         print(statusResponse.content)
         jobStatus = json.loads(statusResponse.content)
         if jobStatus["status"] == "COMPLETED":
@@ -552,40 +542,16 @@ def env_apply(env_name, prompt=True):
         elif jobStatus["status"] == "FAILED":
             Bcolors.fail("Could not create infrastructure")
             print(jobStatus["fail_message"])
-            return
+            sys.exit(1)
         time.sleep(2)
-
     spinner.stop()
 
-    settings["environments"] = settings.get("environments", {})
-    environments = settings["environments"]
-    environments[env_name] = {
-        "target": target,
-        "region": region,
-        "services": jobStatus["services"],
-    }
-
-    update_digger_yaml(settings)
-
-    # create a directory for this environment (for environments and secrets)
-    env_path = f"digger-master/{env_name}"
-    tform_path = f"{env_path}/terraform"
-    Path(env_path).mkdir(parents=True, exist_ok=True)
-    Path(tform_path).mkdir(parents=True, exist_ok=True)
-    shutil.rmtree(tform_path)        
-
-    # tform generation
-    spinner = Halo(text="Updating terraform ...", spinner="dots")
-    spinner.start()
-    download_terraform_files(project_name, env_name, region, target, settings["services"], tform_path)
-    spinner.stop()
 
     print("Deplyment successful!")
-    print(f"your deployment URL(s):")
-    for name, service in jobStatus["services"].items():
-        print(f"{name}: {service['lb_url']}")
+    print(f"your deployment details:")
+    pprint.pprint(jobStatus["outputs"])
 
-    report_async({"command": f"dg env create"}, settings=settings, status="complete")
+    report_async({"command": f"dg env apply"}, settings=settings, status="complete")
 
 
 @env.command(name="sync-tform")
@@ -832,21 +798,6 @@ def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prom
 def env_history():
     action = "history"
     print("Not implemented yet")
-
-@env.command(name="apply")
-@click.argument("env_name", nargs=1, required=True, default="local-docker")
-def env_apply(env_name):
-    action = "apply"
-    report_async({"command": f"dg env {action}"}, status="start")
-    Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
-    if env_name == "local-docker":
-        generate_docker_compose_file()
-        spin(2, 'Updating local environment ...')
-        print("Local environment generated!")
-        print("Use `dg env up local-docker` to run your stack locally")
-    else:
-        print("Not implemented yet")
-    report_async({"command": f"dg env {action}"}, status="complete")
 
 @env.command(name="up")
 @click.argument("env_name", nargs=1, default="local-docker")

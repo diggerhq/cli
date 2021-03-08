@@ -115,6 +115,14 @@ def get_project_environments(projectName):
         auth_token=token
     )
 
+def get_environment_details(projectName, environmentName):
+    response = get_project_environments(projectName)
+    env_list = json.loads(response.content)["results"]
+    for env in env_list:
+        if env["name"] == environmentName:
+            return env
+    raise ApiRequestException("Environment not found")
+
 def create_environment(projectName, data):
     token = get_github_token()
     return do_api(
@@ -175,6 +183,15 @@ def get_job_info(job_id):
     return do_api(
         "GET",
         f"{BACKEND_ENDPOINT}/api/jobs/{job_id}/status",
+        {},
+        auth_token=token
+    )
+
+def get_deployment_info(projectName, deploymentId):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/deployments/{deploymentId}/",
         {},
         auth_token=token
     )
