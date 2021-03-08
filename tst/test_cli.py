@@ -52,6 +52,7 @@ class TestService(ClickTestMixin, unittest.TestCase):
 class TestEnv(ClickTestMixin, unittest.TestCase):
 
     def test_env_list(self, get_project_settings):
+        get_project_settings.return_value = {"project": {"name": "proj1"}}
         result = self._invoke_click_command(["env", "list"])
         assert not result.exception
 
