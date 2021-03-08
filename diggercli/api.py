@@ -41,6 +41,45 @@ def check_project_name(projectName):
         auth_token=token
     )
 
+def get_service(projectName, serviceName):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/{serviceName}",
+        {},
+        auth_token=token
+    )
+
+
+def create_service(projectName, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/",
+        data,
+        auth_token=token
+    )
+
+
+def update_service(projectName, serviceName, data):
+    token = get_github_token()
+    return do_api(
+        "PUT",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/{serviceName}/",
+        data,
+        auth_token=token
+    )
+
+def sync_services(projectName, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/sync/",
+        data,
+        auth_token=token
+    )
+
+
 def create_project(projectName):
     token = get_github_token()
     return do_api(
@@ -49,6 +88,7 @@ def create_project(projectName):
         {"name": projectName},
         auth_token=token
     )
+
 
 def generate_tmp_project(data):
     return do_api(

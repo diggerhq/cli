@@ -35,7 +35,7 @@ from diggercli.auth import (
     require_auth,
     fetch_github_token_with_cli_callback
 )
-from diggercli.exceptions import CouldNotDetermineDockerLocation
+from diggercli.exceptions import CouldNotDetermineDockerLocation, ApiRequestException
 from diggercli import diggerconfig
 from diggercli.validators import ProjectNameValidator, env_name_validate
 from diggercli.transformers import transform_service_name
@@ -964,7 +964,7 @@ def service_add():
         "path": service_path,
         "env_files": [],
         "publicly_accissible": True,
-        "type": "container",
+        "service_type": "container",
         "container_port": 8080,
         "health_check": "/",
         "dockerfile": dockerfile_path,
@@ -977,6 +977,21 @@ def service_add():
 
     print("Service added succesfully")
     report_async({"command": f"dg service add"}, settings=settings, status="complete")
+
+              
+@service.command(name="sync")
+def service_sync():
+    """
+    Sync all current services with backend
+    """
+    settings = get_project_settings()
+    projectName = settings["project"]["name"]
+    services = settings["services"]
+    for key, service in services.items():
+        service["name"] = service["service_name"]
+    servicesList = json.dumps(list(services.values()))
+    api.sync_services(projectName, {"services": servicesList})
+    Bcolors.okgreen("digger.yml services synced with backend successfully")
 
 
 @cli.command()
