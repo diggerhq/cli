@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+from pprint import pprint
 import re
 from datetime import datetime
 import threading
@@ -447,10 +448,9 @@ def env_list(project_name=None):
 @click.option("--region", "-r", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
-@click.option("--project-name", required=False)
 @click.option("--region", "-r", required=False)
 @click.option('--prompt/--no-prompt', default=True)
-def env_create(env_name, target=None, project_name=None, region=None, aws_key=None, aws_secret=None, prompt=True):
+def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None, prompt=True):
 
     try:
         env_name_validate(env_name)
@@ -461,8 +461,7 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
     targets = get_targets()
     settings = get_project_settings()
     report_async({"command": f"dg env create"}, settings=settings, status="start")
-    if project_name is None:
-        project_name = settings["project"]["name"]
+    project_name = settings["project"]["name"]
 
     if target is None:
         questions = [
@@ -496,49 +495,46 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
             },
         ]
         answers = pyprompt(questions)
-        region = answers["region"]        
+        region = answers["region"]
 
     if region not in AWS_REGIONS:
         Bcolors.fail("This region is not valid! Please try again")
         return
 
-    if target == "digger_paas":
-        target = PAAS_TARGET
-        credentials = {
-            "aws_key": None,
-            "aws_secret": None
-        }
-    else:
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+    aws_key = credentials["aws_key"]
+    aws_secret = credentials["aws_secret"]
 
+    spinner = Halo(text="Creating environment", spinner="dots")
+    spinner.start()
 
-    # spin(2, 'Loading creds from ~/.aws/creds')
-    # spin(2, 'Generating terraform packages ...')
-    # spin(2, 'Applying infrastructure ...')
-    # spin(2, 'deploying packages ...')
-
-
-    create_infra_api = lambda: api.create_infra({
-        "aws_key": credentials["aws_key"],
-        "aws_secret": credentials["aws_secret"],
-        "project_name": project_name,
-        "services": json.dumps(settings["services"]),
-        "environment": env_name,
-        "launch_type": "FARGATE",
+    response = api.create_environment(project_name, {
+        "name": env_name,
         "target": target,
-        "backend_bucket_name": "digger-terraform-states",
-        "backend_bucket_region": "eu-west-1",
-        "backend_bucket_key": f"{project_name}/project",
         "region": region,
+        "aws_key": aws_key,
+        "aws_secret": aws_secret,
     })
-    response = create_infra_api()
+    spinner.stop()
+
+
+@env.command(name="apply")
+@click.argument("env_name", nargs=1, required=True)
+def env_apply(env_name):
+
+    settings = get_project_settings()
+    report_async({"command": f"dg env apply"}, settings=settings, status="start")
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    envPk = envDetails["pk"]
+    response = api.apply_environment(projectName, envPk)
     job = json.loads(response.content)
 
     # loading until infra status is complete
     spinner = Halo(text="creating infrastructure ...", spinner="dots")
     spinner.start()
     while True:
-        statusResponse = api.get_job_info(job['job_id'])
+        statusResponse = api.get_infra_deployment_info(projectName, job['job_id'])
         print(statusResponse.content)
         jobStatus = json.loads(statusResponse.content)
         if jobStatus["status"] == "COMPLETED":
@@ -546,40 +542,17 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
         elif jobStatus["status"] == "FAILED":
             Bcolors.fail("Could not create infrastructure")
             print(jobStatus["fail_message"])
-            return
+            sys.exit(1)
         time.sleep(2)
-
     spinner.stop()
 
-    settings["environments"] = settings.get("environments", {})
-    environments = settings["environments"]
-    environments[env_name] = {
-        "target": target,
-        "region": region,
-        "services": jobStatus["services"],
-    }
-
-    update_digger_yaml(settings)
-
-    # create a directory for this environment (for environments and secrets)
-    env_path = f"digger-master/{env_name}"
-    tform_path = f"{env_path}/terraform"
-    Path(env_path).mkdir(parents=True, exist_ok=True)
-    Path(tform_path).mkdir(parents=True, exist_ok=True)
-    shutil.rmtree(tform_path)        
-
-    # tform generation
-    spinner = Halo(text="Updating terraform ...", spinner="dots")
-    spinner.start()
-    download_terraform_files(project_name, env_name, region, target, settings["services"], tform_path)
-    spinner.stop()
 
     print("Deplyment successful!")
-    print(f"your deployment URL(s):")
-    for name, service in jobStatus["services"].items():
-        print(f"{name}: {service['lb_url']}")
+    print(f"your deployment details:")
+    pprint(jobStatus["outputs"])
 
-    report_async({"command": f"dg env create"}, settings=settings, status="complete")
+    report_async({"command": f"dg env apply"}, settings=settings, status="complete")
+
 
 @env.command(name="sync-tform")
 @click.argument("env_name", nargs=1, required=True)
@@ -605,9 +578,10 @@ def env_sync_tform(env_name):
 
 @env.command(name="build")
 @click.argument("env_name", nargs=1, required=True)
-@click.option("--project-name", required=False)
 @click.option('--service', default=None)
-def env_build(env_name, service, project_name=None, ):
+@click.option('--tag', default="latest")
+@click.option('--context', default=None)
+def env_build(env_name, service, context=None, tag="latest"):
     action = "build"
     settings = get_project_settings()
 
@@ -629,27 +603,34 @@ def env_build(env_name, service, project_name=None, ):
         service_name = service
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-    if project_name is None:
-        project_name = settings["project"]["name"]
-    docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]    
-    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
-    subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:latest", f"{docker_registry}:latest"]).communicate()
+    project_name = settings["project"]["name"]
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+    if context is None:
+        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
+    else:
+        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", "-f", f"{service_name}/Dockerfile",
+                      context]).communicate()
+    subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
 @env.command(name="push")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
-@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
+@click.option('--tag', default="latest")
 @click.option('--prompt/--no-prompt', default=False)
-def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
+def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", prompt=False):
     action = "push"
-    settings = get_project_settings()    
+    settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
 
     if service is None:
-        defaultProjectName = os.path.basename(os.getcwd())
         questions = [
             {
                 'type': 'list',
@@ -665,10 +646,16 @@ def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None
     else:
         service_name = service
 
-    if project_name is None:
-        project_name = settings["project"]["name"]
-    docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]
-    region = settings["environments"][env_name]["region"]
+    project_name = settings["project"]["name"]
+
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+    print(infraDeploymentDetails)
+
+    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+    region = infraDeploymentDetails["region"]
     registry_endpoint = docker_registry.split("/")[0]
     credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
     os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
@@ -676,17 +663,17 @@ def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None
     proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
     docker_auth = proc.stdout.decode("utf-8")
     subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
-    subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
+    subprocess.Popen(["docker", "push", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
 @env.command(name="release")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
-@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
+def env_release(env_name, service, aws_key=None, aws_secret=None, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -708,28 +695,24 @@ def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=N
     else:
         service_key = service
 
+    project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
-    target = settings["environments"][env_name]["target"]
-    lb_url = settings["environments"][env_name]["services"][service_key]["lb_url"]
-    docker_registry = settings["environments"][env_name]["services"][service_key]["docker_registry"]
-    region = settings["environments"][env_name]["region"]
-    if project_name is None:
-        project_name = settings["project"]["name"]
-    
-    if target == "digger_paas":
-        target = PAAS_TARGET
-        awsKey = None
-        awsSecret = None
-    else:
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-        awsKey = credentials["aws_key"]
-        awsSecret = credentials["aws_secret"]
-
-    envVars = get_env_vars(env_name, service_key)
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+    lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
+    region = infraDeploymentDetails["region"]
+    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+    awsKey = credentials["aws_key"]
+    awsSecret = credentials["aws_secret"]
+    envVars = {} #get_env_vars(env_name, service_key)
 
     spinner = Halo(text="deploying ...", spinner="dots")
     spinner.start()
     response = api.deploy_to_infra({
+        "environment_pk": f"{envId}",
         "cluster_name": f"{project_name}-{env_name}",
         "service_name": f"{service_name}",
         "region": region,
@@ -739,13 +722,13 @@ def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=N
         "env_vars": json.dumps(envVars)
     })
 
-
     output = json.loads(response.content)
     spinner.stop()
 
     print(output["msg"])
     print(f"your deployment URL: http://{lb_url}")
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
 @env.command(name="destroy")
 @click.argument("env_name", nargs=1, required=True)
@@ -825,21 +808,6 @@ def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prom
 def env_history():
     action = "history"
     print("Not implemented yet")
-
-@env.command(name="apply")
-@click.argument("env_name", nargs=1, required=True, default="local-docker")
-def env_apply(env_name):
-    action = "apply"
-    report_async({"command": f"dg env {action}"}, status="start")
-    Path(f"digger-master/{env_name}").mkdir(parents=True, exist_ok=True)
-    if env_name == "local-docker":
-        generate_docker_compose_file()
-        spin(2, 'Updating local environment ...')
-        print("Local environment generated!")
-        print("Use `dg env up local-docker` to run your stack locally")
-    else:
-        print("Not implemented yet")
-    report_async({"command": f"dg env {action}"}, status="complete")
 
 @env.command(name="up")
 @click.argument("env_name", nargs=1, default="local-docker")
