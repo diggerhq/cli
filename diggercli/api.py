@@ -80,6 +80,16 @@ def sync_services(projectName, data):
     )
 
 
+def create_project(projectName):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/",
+        {"name": projectName},
+        auth_token=token
+    )
+
+
 def generate_tmp_project(data):
     return do_api(
         "POST",

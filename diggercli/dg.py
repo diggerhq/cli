@@ -43,14 +43,8 @@ from diggercli._version import __version__
 from diggercli.constants import (
     PAAS_TARGET,
     DIGGER_SPLASH,
-    PG_SPLASH,
-    SLACK_INVITE_LINK,
     DIGGERHOME_PATH,
-    BACKEND_ENDPOINT,
-    GITHUB_LOGIN_ENDPOINT,
-    HOMEDIR_PATH,
     AWS_HOME_PATH,
-    AWSCREDS_FILE_PATH,
     AWS_REGIONS,
 )
 from diggercli.utils.pprint import Bcolors, Halo, spin
@@ -213,7 +207,6 @@ def generate_docker_compose_file():
     composeFile.close()
 
 def init_project(project_name):
-
         Path("digger-master").mkdir(parents=True, exist_ok=True)
 
         settings = OrderedDict()
@@ -363,10 +356,61 @@ def init():
 
     # report_async({"command": f"dg init"}, status="complete")
 
-@cli.command()
-def pg():
-    print(PG_SPLASH)
-    print(f"You can join here: {SLACK_INVITE_LINK}")
+
+def validate_project_name(ctx, param, value):
+    if value is None:
+        return value
+    if len(value) > 0:
+        return value
+    else:
+        raise click.BadParameter("Project name required")
+
+
+@cli.group()
+@require_auth
+def project():
+    """
+        Configure a new project
+    """
+
+@project.command(name="init")
+@click.option("--name", nargs=1, required=False, callback=validate_project_name)
+def project_init(name=None):
+    action = "init"
+    report_async({"command": f"dg project init"}, status="start")
+
+    if name is None:
+        defaultProjectName = os.path.basename(os.getcwd())
+        questions = [
+            {
+                'type': 'input',
+                'name': 'project_name',
+                'message': 'Enter project name',
+                'default': defaultProjectName,
+                'validate': ProjectNameValidator
+            },
+        ]
+
+        answers = pyprompt(questions)
+
+        project_name = answers["project_name"]
+    else:
+        project_name = name
+
+    # This will throw error if project name is invalid (e.g. project exists)
+    api.check_project_name(project_name)
+
+    spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
+    spinner.start()
+    settings = init_project(project_name)
+    update_digger_yaml(settings)
+    spinner.stop()
+
+
+    print("project initiated successfully")
+    report_async({"command": f"dg project init"}, settings=settings, status="copmlete")
+
+
 @cli.group()
 @require_auth
 def env():
@@ -635,14 +679,14 @@ def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None
     subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
-@env.command(name="deploy")
+@env.command(name="release")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
 @click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_deploy(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
+def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -830,6 +874,10 @@ def project_init(name=None):
     action = "init"
     report_async({"command": f"dg project init"}, status="start")
 
+    if os.path.exists("digger.yml"):
+        Bcolors.fail("digger.yml found, cannot initialize project again")
+        sys.exit(1)
+
     if name is None:
         defaultProjectName = os.path.basename(os.getcwd())
         questions = [
@@ -849,7 +897,7 @@ def project_init(name=None):
         project_name = name
 
     # This will throw error if project name is invalid (e.g. project exists)
-    api.check_project_name(project_name)
+    api.create_project(project_name)
 
     spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
     spinner.start()
@@ -868,10 +916,6 @@ def service():
     """
         Configure a new service
     """
-
-@service.command(name="create")
-def service_create():
-    print("not implemented yet")
 
 
 @service.command(name="add")
@@ -934,7 +978,7 @@ def service_add():
     print("Service added succesfully")
     report_async({"command": f"dg service add"}, settings=settings, status="complete")
 
-
+              
 @service.command(name="sync")
 def service_sync():
     """
@@ -948,62 +992,6 @@ def service_sync():
     servicesList = json.dumps(list(services.values()))
     api.sync_services(projectName, {"services": servicesList})
     Bcolors.okgreen("digger.yml services synced with backend successfully")
-
-
-@cli.command()
-@click.argument("folder_name")
-@click.option("--region", default="us-east-1", help="Stack region")
-@require_auth
-def create(folder_name, region):
-    if os.path.exists(folder_name):
-        Bcolors.fail("Error: folder exists")
-        return
-    response = api.create_infra_quick({"region": region})
-    report_async({"command": f"dg create"}, status="start")
-
-    spinner = Halo(text="creating project", spinner="dots")
-    spinner.start()
-
-    contentJson = json.loads(response.content)
-    os.mkdir(folder_name)
-    os.chdir(folder_name)
-    project_name = contentJson["project_name"]
-    settings = init_project(project_name)
-    # create profile
-    profile_name = create_aws_profile(project_name, contentJson["access_key"], contentJson["secret_id"])
-
-    settings["project"]["lb_url"] = contentJson["lb_url"]
-    settings["project"]["region"] = contentJson["region"]
-    settings["project"]["aws_profile"] = profile_name
-
-    settings["environments"]["prod"] = {
-        "target": "digger_paas",
-        "lb_url": contentJson["lb_url"],
-        "docker_registry": contentJson["docker_registry"],
-        "aws_profile": profile_name,
-    }
-
-    anodePath = "a-nodeapp"
-    settings["services"]["a-nodeapp"] = {
-        "name": "a-nodeapp",
-        "path": anodePath,
-        "env_files":  [],
-        "publicly_accissible": True,
-        "service_type": "container",
-        "container_port": 8080,
-        "dockerfile":  os.path.join(anodePath, "Dockerfile"),
-        "resources": {}
-    }
-
-    update_digger_yaml(settings)
-    clone_repo("https://github.com/diggerhq/a-nodeapp")
-    shutil.rmtree("a-nodeapp/.git")
-    os.chdir("..")
-    spinner.stop()
-
-    Bcolors.okgreen("Project created successfully")
-    print(f"Your site is hosted on the following url: {contentJson['lb_url']}")
-    report_async({"command": f"dg create"}, settings=settings, status="complete")
 
 
 @cli.command()
@@ -1042,75 +1030,6 @@ def resource():
         Configure a resource
     """
 
-@resource.command(name="create")
-@click.argument("resource_type", required=True,)
-@click.argument("name", required=False)
-def resource_create(resource_type, name=None):
-    action = "create"
-
-    settings = get_project_settings()
-    report_async({"command": f"dg resource create"}, settings=settings, status="start")
-
-    service_names = settings["services"].keys()
-
-    questions = [
-    ]
-
-    if name is None:
-        questions.append({
-            'type': 'input',
-            'name': 'resource_name',
-            'message': 'What is the resource name?',
-        })
-
-    if resource_type == "database":
-        questions.append({
-            'type': 'list',
-            'name': 'engine',
-            'message': 'Which Engine',
-            'choices': [
-                'postgres',
-                'mysql',
-            ]
-        })
-    elif resource_type == "email":
-        questions.append({
-                'type': 'list',
-                'name': 'frequency',
-                'message': 'How often do you want it to run?',
-                'choices': [
-                    "minutely",
-                    "hourly",
-                    "daily",
-                    "weekly",
-                    "monthly",
-                ]
-        })
-
-    questions.append({
-        'type': 'list',
-        'name': 'service_name',
-        'message': 'which service?',
-        'choices': service_names
-    })
-
-    answers = pyprompt(questions)
-    service_name = answers["service_name"]
-    resource_name = answers["resource_name"]
-    engine = answers["engine"]
-
-    settings["services"][service_name]["resources"][resource_name] = {
-        "name": resource_name,
-        "type": "database",
-        "engine": engine,
-    }
-    update_digger_yaml(settings)
-    spin(2, "updating configuration ...")
-
-    print("DGL Config updated")
-    report_async({"command": f"dg resource create"}, settings=settings, status="complete")
-
-
 
 
 # exec main function if frozen binary   
@@ -1118,6 +1037,4 @@ if getattr(sys, 'frozen', False):
     try:
         cli(sys.argv[1:])
     except Exception as e:
-        print(PG_SPLASH)
-        print(SLACK_INVITE_LINK)
         raise e
