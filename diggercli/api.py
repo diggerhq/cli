@@ -187,11 +187,23 @@ def get_job_info(job_id):
         auth_token=token
     )
 
-def get_deployment_info(projectName, deploymentId):
+def get_infra_deployment_info(projectName, deploymentId):
     token = get_github_token()
     return do_api(
         "GET",
         f"{BACKEND_ENDPOINT}/api/projects/{projectName}/deployments/{deploymentId}/",
+        {},
+        auth_token=token
+    )
+
+def get_last_infra_deployment_info(projectName, environmetId):
+    """
+        Retrieves the details of the last deployment for this project + env
+    """
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmetId}/last_deployment/",
         {},
         auth_token=token
     )

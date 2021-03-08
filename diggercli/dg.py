@@ -534,7 +534,7 @@ def env_apply(env_name):
     spinner = Halo(text="creating infrastructure ...", spinner="dots")
     spinner.start()
     while True:
-        statusResponse = api.get_deployment_info(projectName, job['job_id'])
+        statusResponse = api.get_infra_deployment_info(projectName, job['job_id'])
         print(statusResponse.content)
         jobStatus = json.loads(statusResponse.content)
         if jobStatus["status"] == "COMPLETED":
@@ -580,7 +580,8 @@ def env_sync_tform(env_name):
 @click.argument("env_name", nargs=1, required=True)
 @click.option("--project-name", required=False)
 @click.option('--service', default=None)
-def env_build(env_name, service, project_name=None, ):
+@click.option('--tag', default="latest")
+def env_build(env_name, service, project_name=None, tag="latest"):
     action = "build"
     settings = get_project_settings()
 
@@ -604,9 +605,13 @@ def env_build(env_name, service, project_name=None, ):
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
     if project_name is None:
         project_name = settings["project"]["name"]
-    docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]    
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+    docker_registry = infraDeploymentDetails["outputs"][service_name]["docker_registry"]
     subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
-    subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:latest", f"{docker_registry}:latest"]).communicate()
+    subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 @env.command(name="push")
