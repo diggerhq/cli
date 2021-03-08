@@ -578,10 +578,10 @@ def env_sync_tform(env_name):
 
 @env.command(name="build")
 @click.argument("env_name", nargs=1, required=True)
-@click.option("--project-name", required=False)
 @click.option('--service', default=None)
 @click.option('--tag', default="latest")
-def env_build(env_name, service, project_name=None, tag="latest"):
+@click.option('--context', default=None)
+def env_build(env_name, service, context=None, tag="latest"):
     action = "build"
     settings = get_project_settings()
 
@@ -603,31 +603,34 @@ def env_build(env_name, service, project_name=None, tag="latest"):
         service_name = service
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-    if project_name is None:
-        project_name = settings["project"]["name"]
+    project_name = settings["project"]["name"]
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
     infraDeploymentDetails = json.loads(response.content)
     docker_registry = infraDeploymentDetails["outputs"][service_name]["docker_registry"]
-    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
+    if context is None:
+        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
+    else:
+        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", "-f", f"{service_name}/Dockerfile",
+                      context]).communicate()
     subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
 @env.command(name="push")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
-@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
+@click.option('--tag', default="latest")
 @click.option('--prompt/--no-prompt', default=False)
-def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
+def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", prompt=False):
     action = "push"
-    settings = get_project_settings()    
+    settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
 
     if service is None:
-        defaultProjectName = os.path.basename(os.getcwd())
         questions = [
             {
                 'type': 'list',
@@ -643,10 +646,14 @@ def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None
     else:
         service_name = service
 
-    if project_name is None:
-        project_name = settings["project"]["name"]
-    docker_registry = settings["environments"][env_name]["services"][service_name]["docker_registry"]
-    region = settings["environments"][env_name]["region"]
+    project_name = settings["project"]["name"]
+
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+    docker_registry = infraDeploymentDetails["outputs"][service_name]["docker_registry"]
+    region = infraDeploymentDetails["region"]
     registry_endpoint = docker_registry.split("/")[0]
     credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
     os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
@@ -654,8 +661,9 @@ def env_push(env_name, service, project_name=None, aws_key=None, aws_secret=None
     proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
     docker_auth = proc.stdout.decode("utf-8")
     subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
-    subprocess.Popen(["docker", "push", f"{docker_registry}:latest"]).communicate()
+    subprocess.Popen(["docker", "push", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
 @env.command(name="release")
 @click.argument("env_name", nargs=1, required=True)
