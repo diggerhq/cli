@@ -207,7 +207,6 @@ def generate_docker_compose_file():
     composeFile.close()
 
 def init_project(project_name):
-
         Path("digger-master").mkdir(parents=True, exist_ok=True)
 
         settings = OrderedDict()
@@ -852,6 +851,63 @@ def env_up(env_name):
     else:
         print("Not implemented yet")
     report_async({"command": f"dg env {action}"}, status="complete")
+
+
+def validate_project_name(ctx, param, value):
+    if value is None:
+        return value
+    if len(value) > 0:
+        return value
+    else:
+        raise click.BadParameter("Project name required")
+
+@cli.group()
+@require_auth
+def project():
+    """
+        Configure a new project
+    """
+
+@project.command(name="init")
+@click.option("--name", nargs=1, required=False, callback=validate_project_name)
+def project_init(name=None):
+    action = "init"
+    report_async({"command": f"dg project init"}, status="start")
+
+    if os.path.exists("digger.yml"):
+        Bcolors.fail("digger.yml found, cannot initialize project again")
+        sys.exit(1)
+
+    if name is None:
+        defaultProjectName = os.path.basename(os.getcwd())
+        questions = [
+            {
+                'type': 'input',
+                'name': 'project_name',
+                'message': 'Enter project name',
+                'default': defaultProjectName,
+                'validate': ProjectNameValidator
+            },
+        ]
+
+        answers = pyprompt(questions)
+
+        project_name = answers["project_name"]
+    else:
+        project_name = name
+
+    # This will throw error if project name is invalid (e.g. project exists)
+    api.create_project(project_name)
+
+    spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
+    spinner.start()
+    settings = init_project(project_name)
+    update_digger_yaml(settings)  
+    spinner.stop()
+
+
+    print("project initiated successfully")
+    report_async({"command": f"dg project init"}, settings=settings, status="copmlete")
 
 
 @cli.group()
