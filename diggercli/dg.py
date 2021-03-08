@@ -447,10 +447,9 @@ def env_list(project_name=None):
 @click.option("--region", "-r", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
-@click.option("--project-name", required=False)
 @click.option("--region", "-r", required=False)
 @click.option('--prompt/--no-prompt', default=True)
-def env_create(env_name, target=None, project_name=None, region=None, aws_key=None, aws_secret=None, prompt=True):
+def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None, prompt=True):
 
     try:
         env_name_validate(env_name)
@@ -461,8 +460,7 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
     targets = get_targets()
     settings = get_project_settings()
     report_async({"command": f"dg env create"}, settings=settings, status="start")
-    if project_name is None:
-        project_name = settings["project"]["name"]
+    project_name = settings["project"]["name"]
 
     if target is None:
         questions = [
@@ -496,27 +494,35 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
             },
         ]
         answers = pyprompt(questions)
-        region = answers["region"]        
+        region = answers["region"]
 
     if region not in AWS_REGIONS:
         Bcolors.fail("This region is not valid! Please try again")
         return
 
-    if target == "digger_paas":
-        target = PAAS_TARGET
-        credentials = {
-            "aws_key": None,
-            "aws_secret": None
-        }
-    else:
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+    aws_key = credentials["aws_key"]
+    aws_secret = credentials["aws_secret"]
+
+    spinner = Halo(text="Creating environment", spinner="dots")
+    spinner.start()
+
+    response = api.create_environment(project_name, {
+        "name": env_name,
+        "target": target,
+        "region": region,
+        "aws_key": aws_key,
+        "aws_secret": aws_secret,
+    })
+    spinner.stop()
 
 
-    # spin(2, 'Loading creds from ~/.aws/creds')
-    # spin(2, 'Generating terraform packages ...')
-    # spin(2, 'Applying infrastructure ...')
-    # spin(2, 'deploying packages ...')
+@env.command(name="apply")
+@click.argument("env_name", nargs=1, required=True)
+@click.option('--prompt/--no-prompt', default=True)
+def env_apply(env_name, prompt=True):
 
+    Bcolors.okgreen("Environment succesfully created")
 
     create_infra_api = lambda: api.create_infra({
         "aws_key": credentials["aws_key"],
@@ -580,6 +586,7 @@ def env_create(env_name, target=None, project_name=None, region=None, aws_key=No
         print(f"{name}: {service['lb_url']}")
 
     report_async({"command": f"dg env create"}, settings=settings, status="complete")
+
 
 @env.command(name="sync-tform")
 @click.argument("env_name", nargs=1, required=True)

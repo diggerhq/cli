@@ -115,6 +115,24 @@ def get_project_environments(projectName):
         auth_token=token
     )
 
+def create_environment(projectName, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/",
+        data,
+        auth_token=token
+    )
+
+def apply_environment(projectName, environmentID):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentID}/apply/",
+        {},
+        auth_token=token
+    )
+
 def create_infra(data):
     token = get_github_token()
     return do_api(
