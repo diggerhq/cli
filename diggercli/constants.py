@@ -22,6 +22,7 @@ DIGGER_SPLASH = """
                    (_/ (_/            
 """
 
+DIGGER_ENV_TOKEN_NAME = "DIGGER_TOKEN"
 BASE_PATH = get_base_path()
 HOMEDIR_PATH = str(Path.home())
 AWS_HOME_PATH = f"{HOMEDIR_PATH}/.aws"

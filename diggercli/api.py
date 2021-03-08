@@ -2,12 +2,16 @@ import os
 import json
 import requests
 from requests import Request, Session
-from diggercli.constants import BACKEND_ENDPOINT, DIGGERTOKEN_FILE_PATH
+from diggercli.constants import BACKEND_ENDPOINT, DIGGERTOKEN_FILE_PATH, DIGGER_ENV_TOKEN_NAME
 from diggercli.exceptions import ApiRequestException
 from diggercli.utils.pprint import Bcolors
 
 
 def get_github_token():
+    env_token = os.environ.get(DIGGER_ENV_TOKEN_NAME, None)
+    if env_token is not None:
+        return env_token
+
     if not os.path.exists(DIGGERTOKEN_FILE_PATH):
         return None
     f = open(DIGGERTOKEN_FILE_PATH, 'r')
