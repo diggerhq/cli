@@ -549,7 +549,7 @@ def env_apply(env_name):
 
     print("Deplyment successful!")
     print(f"your deployment details:")
-    pprint.pprint(jobStatus["outputs"])
+    pprint(jobStatus["outputs"])
 
     report_async({"command": f"dg env apply"}, settings=settings, status="complete")
 
@@ -608,7 +608,7 @@ def env_build(env_name, service, context=None, tag="latest"):
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
     infraDeploymentDetails = json.loads(response.content)
-    docker_registry = infraDeploymentDetails["outputs"][service_name]["docker_registry"]
+    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     if context is None:
         subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
     else:
@@ -652,7 +652,9 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", pro
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
     infraDeploymentDetails = json.loads(response.content)
-    docker_registry = infraDeploymentDetails["outputs"][service_name]["docker_registry"]
+    print(infraDeploymentDetails)
+
+    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     region = infraDeploymentDetails["region"]
     registry_endpoint = docker_registry.split("/")[0]
     credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
@@ -668,11 +670,10 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", pro
 @env.command(name="release")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
-@click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=None, prompt=False):
+def env_release(env_name, service, aws_key=None, aws_secret=None, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -694,28 +695,24 @@ def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=N
     else:
         service_key = service
 
+    project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
-    target = settings["environments"][env_name]["target"]
-    lb_url = settings["environments"][env_name]["services"][service_key]["lb_url"]
-    docker_registry = settings["environments"][env_name]["services"][service_key]["docker_registry"]
-    region = settings["environments"][env_name]["region"]
-    if project_name is None:
-        project_name = settings["project"]["name"]
-    
-    if target == "digger_paas":
-        target = PAAS_TARGET
-        awsKey = None
-        awsSecret = None
-    else:
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-        awsKey = credentials["aws_key"]
-        awsSecret = credentials["aws_secret"]
-
-    envVars = get_env_vars(env_name, service_key)
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+    lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
+    region = infraDeploymentDetails["region"]
+    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+    awsKey = credentials["aws_key"]
+    awsSecret = credentials["aws_secret"]
+    envVars = {} #get_env_vars(env_name, service_key)
 
     spinner = Halo(text="deploying ...", spinner="dots")
     spinner.start()
     response = api.deploy_to_infra({
+        "environment_pk": f"{envId}",
         "cluster_name": f"{project_name}-{env_name}",
         "service_name": f"{service_name}",
         "region": region,
@@ -725,13 +722,13 @@ def env_release(env_name, service, project_name=None, aws_key=None, aws_secret=N
         "env_vars": json.dumps(envVars)
     })
 
-
     output = json.loads(response.content)
     spinner.stop()
 
     print(output["msg"])
     print(f"your deployment URL: http://{lb_url}")
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
 
 @env.command(name="destroy")
 @click.argument("env_name", nargs=1, required=True)
