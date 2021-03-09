@@ -297,7 +297,7 @@ class SpecialEpilog(click.Group):
 @click.option('--version', is_flag=True, is_eager=True,
                 expose_value=False, callback=print_version)
 def cli():
-
+    Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
     Path(AWS_HOME_PATH).mkdir(parents=True, exist_ok=True)
 
 @cli.command()
@@ -715,6 +715,7 @@ def env_release(env_name, service, aws_key=None, aws_secret=None, prompt=False):
         "environment_pk": f"{envId}",
         "cluster_name": f"{project_name}-{env_name}",
         "service_name": f"{service_name}",
+        "task_name": f"{project_name}-{env_name}-{service_name}",
         "region": region,
         "image_url": f"{docker_registry}:latest",
         "aws_key": awsKey,
