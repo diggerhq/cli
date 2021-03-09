@@ -41,9 +41,6 @@ setup(
     ],
     version="1.0",
     py_modules=["diggercli",],
-    install_requires=[
-        "click",
-    ],
     packages=['diggercli', 'diggercli.utils'],
     entry_points='''
         [console_scripts]
