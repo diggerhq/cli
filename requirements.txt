@@ -12,7 +12,7 @@ log-symbols==0.0.14
 MarkupSafe==1.1.1
 marshmallow==3.9.0
 oyaml==1.0
-prompt-toolkit==1.0.14
+prompt_toolkit==1.0.14
 pyasn1==0.4.8
 Pygments==2.7.1
 PyInquirer==1.0.3
