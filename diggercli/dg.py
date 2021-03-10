@@ -602,6 +602,7 @@ def env_build(env_name, service, context=None, tag="latest"):
     else:
         service_name = service
 
+    dockerfile = settings["services"][service_name]["dockerfile"]
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
     project_name = settings["project"]["name"]
     envDetails = api.get_environment_details(project_name, env_name)
@@ -610,9 +611,9 @@ def env_build(env_name, service, context=None, tag="latest"):
     infraDeploymentDetails = json.loads(response.content)
     docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     if context is None:
-        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", f"{service_name}/"]).communicate()
-    else:
-        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", "-f", f"{service_name}/Dockerfile",
+        context = f"{service_name}/"
+
+    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", "-f", f"{dockerfile}",
                       context]).communicate()
     subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
