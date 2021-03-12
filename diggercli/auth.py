@@ -11,8 +11,8 @@ from diggercli.projects import get_temporary_project_id
 from diggercli.constants import (
     GITHUB_LOGIN_ENDPOINT,
     WEBAPP_ENDPOINT,
-    DIGGERTOKEN_FILE_PATH
-)
+    DIGGERTOKEN_FILE_PATH,
+    DIGGER_ENV_TOKEN_NAME)
 from diggercli.server import start_server
 from diggercli.fileio import upload_code
 
@@ -55,7 +55,8 @@ def fetch_github_token():
 def require_auth(func):
     @click.pass_context
     def wrapper(ctx, *args, **kwargs):
-        if not os.path.exists(DIGGERTOKEN_FILE_PATH):
+        if not os.path.exists(DIGGERTOKEN_FILE_PATH) and \
+                not os.environ.get(DIGGER_ENV_TOKEN_NAME, None):
             Bcolors.fail("Authentication required, please run `dg auth`")
             return
         # TODO: figure out why such ctx is not working

@@ -2,12 +2,16 @@ import os
 import json
 import requests
 from requests import Request, Session
-from diggercli.constants import BACKEND_ENDPOINT, DIGGERTOKEN_FILE_PATH
+from diggercli.constants import BACKEND_ENDPOINT, DIGGERTOKEN_FILE_PATH, DIGGER_ENV_TOKEN_NAME
 from diggercli.exceptions import ApiRequestException
 from diggercli.utils.pprint import Bcolors
 
 
 def get_github_token():
+    env_token = os.environ.get(DIGGER_ENV_TOKEN_NAME, None)
+    if env_token is not None:
+        return env_token
+
     if not os.path.exists(DIGGERTOKEN_FILE_PATH):
         return None
     f = open(DIGGERTOKEN_FILE_PATH, 'r')
@@ -41,6 +45,55 @@ def check_project_name(projectName):
         auth_token=token
     )
 
+def get_service(projectName, serviceName):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/{serviceName}",
+        {},
+        auth_token=token
+    )
+
+
+def create_service(projectName, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/",
+        data,
+        auth_token=token
+    )
+
+
+def update_service(projectName, serviceName, data):
+    token = get_github_token()
+    return do_api(
+        "PUT",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/{serviceName}/",
+        data,
+        auth_token=token
+    )
+
+def sync_services(projectName, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/sync/",
+        data,
+        auth_token=token
+    )
+
+
+def create_project(projectName):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/",
+        {"name": projectName},
+        auth_token=token
+    )
+
+
 def generate_tmp_project(data):
     return do_api(
         "POST",
@@ -62,6 +115,32 @@ def get_project_environments(projectName):
     return do_api(
         "GET",
         f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/",
+        {},
+        auth_token=token
+    )
+
+def get_environment_details(projectName, environmentName):
+    response = get_project_environments(projectName)
+    env_list = json.loads(response.content)["results"]
+    for env in env_list:
+        if env["name"] == environmentName:
+            return env
+    raise ApiRequestException("Environment not found")
+
+def create_environment(projectName, data):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/",
+        data,
+        auth_token=token
+    )
+
+def apply_environment(projectName, environmentID):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentID}/apply/",
         {},
         auth_token=token
     )
@@ -108,6 +187,27 @@ def get_job_info(job_id):
     return do_api(
         "GET",
         f"{BACKEND_ENDPOINT}/api/jobs/{job_id}/status",
+        {},
+        auth_token=token
+    )
+
+def get_infra_deployment_info(projectName, deploymentId):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/deployments/{deploymentId}/",
+        {},
+        auth_token=token
+    )
+
+def get_last_infra_deployment_info(projectName, environmetId):
+    """
+        Retrieves the details of the last deployment for this project + env
+    """
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmetId}/last_deployment/",
         {},
         auth_token=token
     )
