@@ -517,6 +517,9 @@ def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None
     })
     spinner.stop()
 
+    Bcolors.okgreen("Environment created successfully")
+    Bcolors.okgreen(f"Use this command to run it: dg env apply {env_name}")
+
 
 @env.command(name="apply")
 @click.argument("env_name", nargs=1, required=True)
@@ -613,7 +616,7 @@ def env_build(env_name, service, context=None, tag="latest"):
     if context is None:
         context = f"{service_name}/"
 
-    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}", "-f", f"{dockerfile}",
+    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
                       context]).communicate()
     subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
@@ -674,7 +677,8 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", pro
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
-def env_release(env_name, service, aws_key=None, aws_secret=None, prompt=False):
+@click.option('--tag', default="latest")
+def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, prompt=False):
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -718,7 +722,7 @@ def env_release(env_name, service, aws_key=None, aws_secret=None, prompt=False):
         "service_name": f"{service_name}",
         "task_name": f"{project_name}-{env_name}-{service_name}",
         "region": region,
-        "image_url": f"{docker_registry}:latest",
+        "image_url": f"{docker_registry}:{tag}",
         "aws_key": awsKey,
         "aws_secret": awsSecret,
         "env_vars": json.dumps(envVars)
