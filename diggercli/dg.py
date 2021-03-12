@@ -953,8 +953,8 @@ def service_add():
     report_async({"command": f"dg service add"}, settings=settings, status="complete")
 
               
-@service.command(name="sync")
-def service_sync():
+@cli.command(name="sync")
+def sync():
     """
     Sync all current services with backend
     """
