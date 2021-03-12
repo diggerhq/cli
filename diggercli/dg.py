@@ -258,9 +258,8 @@ def get_targets():
         "Digger Paas": "digger_paas",
         "AWS ECS Fargate": "diggerhq/target-fargate@v1.0.3",
         "(soon!) AWS EKS": "aws_eks",
-        "(soon!) AWS EC2 docker-compose": "aws_ec2_compose",
         "(soon!) Google Cloud Run": "gcp_cloudrun",
-        "(soon!) Google GKE": "gcp_gke",
+        "other": "other",
     }
 
 def get_service_names():
@@ -477,7 +476,16 @@ def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None
         target_key = answers["target"]
         target = targets[target_key]
 
-        if target_key not in ["AWS ECS Fargate", "Digger Paas"]:
+        if target == "other":
+
+            ok = "n"
+            while (ok.lower() != "y"):
+                print("Enter target: ", end="")
+                target = input()
+                print(f"Confirm Target {target} (Y/N)?", end="")
+                ok = input()
+
+        elif target_key not in ["AWS ECS Fargate", "Digger Paas"]:
             Bcolors.fail("This option is currently unsupported! Please try again")
             return
     else:
