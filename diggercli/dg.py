@@ -945,7 +945,7 @@ def service_add():
         "service_name": service_name,
         "path": service_path,
         "env_files": [],
-        "publicly_accissible": True,
+        "publicly_accessible": True,
         "service_type": "container",
         "container_port": 8080,
         "health_check": "/",
