@@ -558,7 +558,7 @@ def env_apply(env_name):
     spinner.stop()
 
 
-    print("Deplyment successful!")
+    print("Deployment successful!")
     print(f"your deployment details:")
     pprint(jobStatus["outputs"])
 
