@@ -749,74 +749,52 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 @click.option("--project-name", required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
-@click.option('--prompt/--no-prompt', default=False)
-def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prompt=False):
-    action = "destroy"
-    report_async({"command": f"dg env {action}"}, status="start")
-
-    questions = [
-        {
-            'type': 'input',
-            'name': 'sure',
-            'message': 'Are you sure (Y/N)?'
-        },
-    ]
-
-    answers = pyprompt(questions)
-    if answers["sure"] != "Y":
-        Bcolors.fail("aborting")
-        return
+@click.option('--prompt/--no-prompt', default=True)
+def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prompt=True):
 
     settings = get_project_settings()
-    if project_name is None:
-        project_name = settings["project"]["name"]
-
-    target = settings["environments"][env_name]["target"]
-    region = settings["environments"][env_name]["region"]
-    
-    if target == "digger_paas":
-        target = PAAS_TARGET
-        awsKey = None
-        awsSecret = None
-    else:
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-        awsKey = credentials["aws_key"]
-        awsSecret = credentials["aws_secret"]
-
-
-    response = api.destroy_infra({
-        "aws_key": awsKey,
-        "aws_secret": awsSecret,
-        "project_name": project_name,
-        "launch_type": "FARGATE",
-        "target": target,
-        "environment": env_name,
-        "region": region,
-        "backend_bucket_name": "digger-terraform-states",
-        "backend_bucket_region": "eu-west-1",
-        "services": json.dumps(settings["services"])
-    })
-    
+    report_async({"command": f"dg env destroy"}, settings=settings, status="start")
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    envPk = envDetails["pk"]
+    response = api.destroy_environment(projectName, envPk)
     job = json.loads(response.content)
+
+
+    if prompt:
+        questions = [
+            {
+                'type': 'input',
+                'name': 'sure',
+                'message': 'Are you sure (Y/N)?'
+            },
+        ]
+
+        answers = pyprompt(questions)
+        if answers["sure"] != "Y":
+            Bcolors.fail("aborting")
+            sys.exit(1)
 
     # loading until infra status is complete
     spinner = Halo(text="destroying infrastructure ...", spinner="dots")
     spinner.start()
     while True:
-        statusResponse = api.get_job_info(job['job_id'])
+        statusResponse = api.get_infra_destroy_job_info(projectName, job['job_id'])
         print(statusResponse.content)
         jobStatus = json.loads(statusResponse.content)
         if jobStatus["status"] == "DESTROYED":
             break
         elif jobStatus["status"] == "FAILED":
-            Bcolors.fail("Could not destroy infrastructure")
+            Bcolors.fail("Could not create infrastructure")
             print(jobStatus["fail_message"])
-            return
+            sys.exit(1)
         time.sleep(2)
-
     spinner.stop()
-    Bcolors.okgreen("Infrasructure destroyed successfully")
-    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+
+    print(f"Environment destroyed succesfully")
+    report_async({"command": f"dg env destroy"}, settings=settings, status="complete")
+
 
 @env.command(name="history")
 def env_history():
