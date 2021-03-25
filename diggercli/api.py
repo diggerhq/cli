@@ -136,11 +136,20 @@ def create_environment(projectName, data):
         auth_token=token
     )
 
-def apply_environment(projectName, environmentID):
+def apply_environment(projectName, environmentId):
     token = get_github_token()
     return do_api(
         "POST",
-        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentID}/apply/",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/apply/",
+        {},
+        auth_token=token
+    )
+
+def destroy_environment(projectName, environmentId):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/destroy/",
         {},
         auth_token=token
     )
@@ -199,6 +208,15 @@ def get_infra_deployment_info(projectName, deploymentId):
         {},
         auth_token=token
     )
+
+def get_infra_destroy_job_info(projectName, deploymentId):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/destroy_jobs/{deploymentId}/",
+        {},
+        auth_token=token
+    )    
 
 def get_last_infra_deployment_info(projectName, environmetId):
     """
