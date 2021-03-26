@@ -145,12 +145,12 @@ def apply_environment(projectName, environmentId):
         auth_token=token
     )
 
-def destroy_environment(projectName, environmentId):
+def destroy_environment(projectName, environmentId, data):
     token = get_github_token()
     return do_api(
         "POST",
         f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/destroy/",
-        {},
+        data,
         auth_token=token
     )
 

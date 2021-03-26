@@ -757,7 +757,10 @@ def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prom
     projectName = settings["project"]["name"]
     envDetails = api.get_environment_details(projectName, env_name)
     envPk = envDetails["pk"]
-    response = api.destroy_environment(projectName, envPk)
+    response = api.destroy_environment(projectName, envPk, {
+        "aws_key": aws_key,
+        "aws_secret": aws_secret
+    })
     job = json.loads(response.content)
 
 
