@@ -16,7 +16,7 @@ setup(
         "environs==9.0.0",
         "halo==0.0.30",
         "idna==2.10",
-        "Jinja2==2.11.2",
+        "Jinja2==2.11.3",
         "jmespath==0.10.0",
         "log-symbols==0.0.14",
         "MarkupSafe==1.1.1",
