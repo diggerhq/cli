@@ -445,17 +445,34 @@ def env_list(project_name=None):
 @click.argument("env_name", nargs=1, required=True)
 @click.option("--target", "-t", required=False)
 @click.option("--region", "-r", required=False)
+@click.option("--config", "-c", multiple=True, required=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
-@click.option("--region", "-r", required=False)
 @click.option('--prompt/--no-prompt', default=True)
-def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None, prompt=True):
+def env_create(
+    env_name, 
+    target=None,
+    region=None,
+    aws_key=None,
+    aws_secret=None,
+    config=[],
+    prompt=True
+):
 
     try:
         env_name_validate(env_name)
     except ValueError as e:
         Bcolors.warn(str(e))
         sys.exit()
+
+    # parsing config options
+    configOptions = {}
+    for configOption in config:
+        if configOption.find("=") < 0:
+            Bcolors.error(f"each config should be of form key=val, found: {configOption}")
+            sys.exit(-1)
+        key,val = configOption.split("=")
+        configOptions[key] = val
 
     targets = get_targets()
     settings = get_project_settings()
@@ -522,6 +539,7 @@ def env_create(env_name, target=None, region=None, aws_key=None, aws_secret=None
         "region": region,
         "aws_key": aws_key,
         "aws_secret": aws_secret,
+        "config_options": json.dumps(configOptions)
     })
     spinner.stop()
 
