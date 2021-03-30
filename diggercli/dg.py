@@ -89,13 +89,13 @@ def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
     if currentAwsKey is None or currentAwsSecret is None:
         questions = [
             {
-                'type': 'input',
+                'type': 'password',
                 'name': 'aws_key',
                 'message': f'Your AWS Key',
                 'validate': lambda x: len(x) > 0
             },
             {
-                'type': 'input',
+                'type': 'password',
                 'name': 'aws_secret',
                 'message': f'Your AWS Secret',
                 'validate': lambda x: len(x) > 0
@@ -108,12 +108,12 @@ def prompt_for_aws_keys(currentAwsKey, currentAwsSecret):
 
         questions = [
             {
-                'type': 'input',
+                'type': 'password',
                 'name': 'aws_key',
                 'message': f'Your AWS Key ({maskedAwsKey}***)',
             },
             {
-                'type': 'input',
+                'type': 'password',
                 'name': 'aws_secret',
                 'message': f'Your AWS Secret ({maskedAwsSecret}***)'
             },
