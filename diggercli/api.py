@@ -136,6 +136,15 @@ def create_environment(projectName, data):
         auth_token=token
     )
 
+def update_environment(projectName, environmentId, data):
+    token = get_github_token()
+    return do_api(
+        "PUT",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/",
+        data,
+        auth_token=token
+    )
+
 def apply_environment(projectName, environmentId):
     token = get_github_token()
     return do_api(
