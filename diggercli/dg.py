@@ -437,8 +437,36 @@ def env_list(project_name=None):
 
     for env in environments:
         print(f">> {env['name']}")
-
+        print(f"  -> pk={env['pk']}")
+        print(f"  -> target={env['target']}")
+        print(f"  -> region={env['region']}")
+        print(f"  -> config_options={env['config_options']}")
+        print(f"  -> aws_key={env['aws_key'][:4]}****{env['aws_key'][-4:]}")
     report_async({"command": f"dg env list"}, settings=settings, status="complete")
+
+
+@env.command(name="describe")
+@click.argument("env_name", nargs=1, required=True)
+def env_describe(env_name):
+    settings = get_project_settings()
+    report_async({"command": f"dg env details"}, settings=settings, status="start")
+
+    project_name = settings["project"]["name"]
+    env = api.get_environment_details(project_name, env_name)
+    envId = env["pk"]
+    response = api.get_last_infra_deployment_info(project_name, envId)
+    infraDeploymentDetails = json.loads(response.content)
+
+    print(f">> {env['name']}")
+    print(f"  -> pk={env['pk']}")
+    print(f"  -> target={env['target']}")
+    print(f"  -> region={env['region']}")
+    print(f"  -> config_options={env['config_options']}")
+    print(f"  -> aws_key={env['aws_key'][:4]}****{env['aws_key'][-4:]}")
+    report_async({"command": f"dg env list"}, settings=settings, status="complete")
+    pprint(infraDeploymentDetails)
+    
+    report_async({"command": f"dg env details"}, settings=settings, status="complete")
 
 
 @env.command(name="create")
