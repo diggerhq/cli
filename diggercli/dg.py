@@ -49,6 +49,7 @@ from diggercli.constants import (
     AWS_REGIONS,
 )
 from diggercli.utils.pprint import Bcolors, Halo, spin
+from diggercli.utils.misc import parse_env_config_options
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 
@@ -466,17 +467,7 @@ def env_create(
         sys.exit()
 
     # parsing config options
-    configOptions = {}
-    for configOption in config:
-        if configOption.find("=") < 0:
-            Bcolors.error(f"each config should be of form key=val, found: {configOption}")
-            sys.exit(-1)
-        key,val = configOption.split("=")
-        # parse boolean inputs correctly
-        if val.lower() == "true" or val.lower() == "false":
-            val = (val.lower() == "true")
-        configOptions[key] = val
-
+    configOptions = parse_env_config_options(config)
 
     targets = get_targets()
     settings = get_project_settings()
@@ -549,6 +540,35 @@ def env_create(
 
     Bcolors.okgreen("Environment created successfully")
     Bcolors.okgreen(f"Use this command to run it: dg env apply {env_name}")
+
+@env.command(name="update")
+@click.argument("env_name", nargs=1, required=True)
+@click.option("--target", "-t", required=False)
+@click.option("--config", "-c", multiple=True, required=False)
+@click.option("--aws-key", required=False)
+@click.option("--aws-secret", required=False)
+def env_update(env_name, target=None, config=None, aws_key=None, aws_secret=None):
+    settings = get_project_settings()
+    report_async({"command": f"dg env update"}, settings=settings, status="start")
+
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    envPk = envDetails["pk"]
+
+    data = {}
+    if target is not None:
+        data["target"] = target
+    if config is not None:
+        data["config_options"] = parse_env_config_options(config)
+        data["config_options"] = json.dumps(data["config_options"])
+    if aws_key is not None:
+        data["aws_key"] = aws_key
+    if aws_secret is not None:
+        data["aws_secret"] = aws_secret
+
+    response = api.update_environment(projectName, envPk, data)
+    Bcolors.okgreen("environment udpated succesfully")
+    report_async({"command": f"dg env update"}, settings=settings, status="stop")
 
 
 @env.command(name="apply")
