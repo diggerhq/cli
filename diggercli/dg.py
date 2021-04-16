@@ -734,7 +734,6 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", pro
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
     infraDeploymentDetails = json.loads(response.content)
-    print(infraDeploymentDetails)
 
     docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     region = infraDeploymentDetails["region"]
