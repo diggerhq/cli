@@ -679,11 +679,12 @@ def env_build(env_name, service, context=None, tag="latest"):
 
         answers = pyprompt(questions)
 
-        service_name = answers["service_name"]
+        service_key = answers["service_name"]
     else:
-        service_name = service
+        service_key = service
 
-    dockerfile = settings["services"][service_name]["dockerfile"]
+    service_name = settings["services"][service_key]["service_name"]
+    dockerfile = settings["services"][service_key]["dockerfile"]
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
     project_name = settings["project"]["name"]
     envDetails = api.get_environment_details(project_name, env_name)
@@ -692,7 +693,7 @@ def env_build(env_name, service, context=None, tag="latest"):
     infraDeploymentDetails = json.loads(response.content)
     docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     if context is None:
-        context = f"{service_name}/"
+        context = f"{service_key}/"
 
     subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
                       context]).communicate()
@@ -724,12 +725,12 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", pro
 
         answers = pyprompt(questions)
 
-        service_name = answers["service_name"]
+        service_key = answers["service_name"]
     else:
-        service_name = service
+        service_key = service
 
     project_name = settings["project"]["name"]
-
+    service_name = settings["services"][service_key]["service_name"]
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
