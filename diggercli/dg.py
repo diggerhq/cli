@@ -44,6 +44,7 @@ from diggercli._version import __version__
 from diggercli.constants import (
     PAAS_TARGET,
     DIGGER_SPLASH,
+    DOCKER_REMOTE_HOST,
     DIGGERHOME_PATH,
     AWS_HOME_PATH,
     AWS_REGIONS,
@@ -660,9 +661,10 @@ def env_sync_tform(env_name):
 @env.command(name="build")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
+@click.option('--remote/--no-remote', default=False)
 @click.option('--tag', default="latest")
 @click.option('--context', default=None)
-def env_build(env_name, service, context=None, tag="latest"):
+def env_build(env_name, service, remote, context=None, tag="latest"):
     action = "build"
     settings = get_project_settings()
 
@@ -695,6 +697,9 @@ def env_build(env_name, service, context=None, tag="latest"):
     if context is None:
         context = f"{service_key}/"
 
+    if remote:
+        os.environ["DOCKER_REMOTE_HOST"] = DOCKER_REMOTE_HOST
+
     subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
                       context]).communicate()
     subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
@@ -706,9 +711,10 @@ def env_build(env_name, service, context=None, tag="latest"):
 @click.option('--service', default=None)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
+@click.option('--remote/--no-remote', default=False)
 @click.option('--tag', default="latest")
 @click.option('--prompt/--no-prompt', default=False)
-def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", prompt=False):
+def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="latest", prompt=False):
     action = "push"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -735,6 +741,9 @@ def env_push(env_name, service, aws_key=None, aws_secret=None, tag="latest", pro
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
     infraDeploymentDetails = json.loads(response.content)
+
+    if remote:
+        os.environ["DOCKER_REMOTE_HOST"] = DOCKER_REMOTE_HOST
 
     docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     region = infraDeploymentDetails["region"]
