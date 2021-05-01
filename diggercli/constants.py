@@ -35,6 +35,7 @@ BACKEND_ENDPOINT = env("BACKEND_ENDPOINT")
 GITHUB_LOGIN_ENDPOINT = BACKEND_ENDPOINT + "/login/github/"
 WEBAPP_ENDPOINT = env("WEBAPP_ENDPOINT")
 PAAS_TARGET = "diggerhq/target-fargate@v1.0.0"
+DOCKER_REMOTE_HOST = "ssh://ec2-user@docker-runner.digger.dev"
 AWS_REGIONS = [
     "us-east-1",
     "us-east-2",
