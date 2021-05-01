@@ -698,7 +698,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         context = f"{service_key}/"
 
     if remote:
-        os.environ["DOCKER_REMOTE_HOST"] = DOCKER_REMOTE_HOST
+        os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
 
     subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
                       context]).communicate()
@@ -743,7 +743,7 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
     infraDeploymentDetails = json.loads(response.content)
 
     if remote:
-        os.environ["DOCKER_REMOTE_HOST"] = DOCKER_REMOTE_HOST
+        os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
 
     docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     region = infraDeploymentDetails["region"]
