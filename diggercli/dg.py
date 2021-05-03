@@ -143,8 +143,12 @@ def retreive_aws_creds(projectName, environment, aws_key=None, aws_secret=None, 
     if profileName not in diggerconfig:
         diggerconfig[profileName] = {}
     
-    currentAwsKey = diggerconfig[profileName].get("aws_access_key_id", aws_key)
-    currentAwsSecret = diggerconfig[profileName].get("aws_secret_access_key", aws_secret)
+    if aws_key is not None and aws_secret is not None:
+        currentAwsKey = aws_key
+        currentAwsSecret = aws_secret
+    else:
+        currentAwsKey = diggerconfig[profileName].get("aws_access_key_id", aws_key)
+        currentAwsSecret = diggerconfig[profileName].get("aws_secret_access_key", aws_secret)
 
     if prompt or (currentAwsKey is None or currentAwsSecret is None):
         answers = prompt_for_aws_keys(currentAwsKey, currentAwsSecret)
@@ -295,7 +299,7 @@ class SpecialEpilog(click.Group):
                 formatter.write_text(line)
 
 @click.group(cls=SpecialEpilog, epilog=DIGGER_SPLASH)
-@click.option('--version', is_flag=True, is_eager=True,
+@click.option('--version', '-v', is_flag=True, is_eager=True,
                 expose_value=False, callback=print_version)
 def cli():
     Path(DIGGERHOME_PATH).mkdir(parents=True, exist_ok=True)
