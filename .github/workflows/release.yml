@@ -161,9 +161,9 @@ jobs:
           aws-region: eu-west-1
 
       - name: build and push to ecr
-        run: >
-            export TAG=${{needs.create-release.outputs.tag_version}}
-            docker build --build-arg tag=$TAG -t dg -f docker/Dockerfile.ecr.publish .
-            docker tag dg:latest public.ecr.aws/g1x6q1x1/dg:$TAG
+        run: |
+            export TAG=${{needs.create-release.outputs.tag_version}} &&
+            docker build --build-arg tag=$TAG -t dg -f docker/Dockerfile.ecr.publish . &&
+            docker tag dg:$TAG public.ecr.aws/g1x6q1x1/dg:$TAG
             docker push public.ecr.aws/g1x6q1x1/dg:$TAG
 
