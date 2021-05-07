@@ -1,7 +1,7 @@
 FROM python:3.9.5-alpine3.13
 
 WORKDIR /code
-COPY . /code
+# COPY . /code
 
 ENV BACKEND_ENDPOINT="https://backend.digger.dev"
 ENV WEBAPP_ENDPOINT="https://app.digger.dev"
