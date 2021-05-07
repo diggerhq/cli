@@ -164,7 +164,7 @@ jobs:
         run: >
             export TAG=${{needs.create-release.outputs.tag_version}}
             aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/g1x6q1x1
-            docker build -e tag=$TAG -t dg -f docker/Dockerfile.ecr.publish .
+            docker build --build-arg tag=$TAG -t dg -f docker/Dockerfile.ecr.publish .
             docker tag dg:latest public.ecr.aws/g1x6q1x1/dg:$TAG
             docker push public.ecr.aws/g1x6q1x1/dg:$TAG
 

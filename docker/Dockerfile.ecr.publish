@@ -5,7 +5,7 @@ COPY . /code
 
 ENV BACKEND_ENDPOINT="https://backend.digger.dev"
 ENV WEBAPP_ENDPOINT="https://app.digger.dev"
-ENV TAG="master"
+ARG TAG="master"
 
 RUN apk add git gcc libcurl python3-dev libc-dev docker
 RUN pip install --upgrade awscli \
