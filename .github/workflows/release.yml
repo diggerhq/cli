@@ -160,17 +160,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
-
       - name: build and push to ecr
         run: |
             export TAG=${{needs.create-release.outputs.tag_version}}
+            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_KEY_ID }}
+            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws ecr-public get-login-password --region us-east-1  | docker login --username AWS --password-stdin public.ecr.aws/g1x6q1x1
             docker build --build-arg TAG=$TAG -t dg -f docker/Dockerfile.ecr.publish .
             docker tag "dg:latest" "public.ecr.aws/g1x6q1x1/dg:$TAG"
             docker tag "dg:latest" "public.ecr.aws/g1x6q1x1/dg:latest"
