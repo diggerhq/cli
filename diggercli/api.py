@@ -154,6 +154,15 @@ def apply_environment(projectName, environmentId):
         auth_token=token
     )
 
+def estimate_cost(projectName, environmentId):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/estimate_cost/",
+        {},
+        auth_token=token
+    )
+
 def destroy_environment(projectName, environmentId, data):
     token = get_github_token()
     return do_api(
