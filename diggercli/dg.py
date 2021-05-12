@@ -639,6 +639,24 @@ def env_apply(env_name):
 
     report_async({"command": f"dg env apply"}, settings=settings, status="complete")
 
+@env.command(name="cost")
+@click.argument("env_name", nargs=1, required=True)
+def env_cost(env_name):
+
+    settings = get_project_settings()
+    report_async({"command": f"dg env apply"}, settings=settings, status="start")
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    envPk = envDetails["pk"]
+    spinner = Halo(text="Estimating environment costs ...", spinner="dots")
+    spinner.start()
+    response = api.estimate_cost(projectName, envPk)
+    spinner.stop()
+    Bcolors.okgreen("Your cost estimates are shown below")
+    print("--------------------------------")
+    pprint(response.content)
+    report_async({"command": f"dg env apply"}, settings=settings, status="complete")
+
 
 @env.command(name="sync-tform")
 @click.argument("env_name", nargs=1, required=True)
