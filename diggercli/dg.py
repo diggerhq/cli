@@ -639,12 +639,33 @@ def env_apply(env_name):
 
     report_async({"command": f"dg env apply"}, settings=settings, status="complete")
 
+
+@env.command(name="plan")
+@click.argument("env_name", nargs=1, required=True)
+def env_plan(env_name):
+
+    settings = get_project_settings()
+    report_async({"command": f"dg env plan"}, settings=settings, status="start")
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    envPk = envDetails["pk"]
+    spinner = Halo(text="Planning environment ...", spinner="dots")
+    spinner.start()
+    response = api.plan_environment(projectName, envPk)
+    spinner.stop()
+    Bcolors.okgreen("Your environment plan is shown below")
+    print("--------------------------------")
+    data = json.loads(response.content)
+    pprint(data["output"])
+    report_async({"command": f"dg env plan"}, settings=settings, status="complete")
+
+
 @env.command(name="cost")
 @click.argument("env_name", nargs=1, required=True)
 def env_cost(env_name):
 
     settings = get_project_settings()
-    report_async({"command": f"dg env apply"}, settings=settings, status="start")
+    report_async({"command": f"dg env cost"}, settings=settings, status="start")
     projectName = settings["project"]["name"]
     envDetails = api.get_environment_details(projectName, env_name)
     envPk = envDetails["pk"]
@@ -655,7 +676,7 @@ def env_cost(env_name):
     Bcolors.okgreen("Your cost estimates are shown below")
     print("--------------------------------")
     pprint(response.content)
-    report_async({"command": f"dg env apply"}, settings=settings, status="complete")
+    report_async({"command": f"dg env cost"}, settings=settings, status="complete")
 
 
 @env.command(name="sync-tform")
