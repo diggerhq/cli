@@ -606,7 +606,8 @@ def env_update(env_name, target=None, config=None, aws_key=None, aws_secret=None
 
 @env.command(name="apply")
 @click.argument("env_name", nargs=1, required=True)
-def env_apply(env_name):
+@click.option("--verbose/--no-verbose", default=False)
+def env_apply(env_name, verbose):
 
     settings = get_project_settings()
     report_async({"command": f"dg env apply"}, settings=settings, status="start")
@@ -617,12 +618,22 @@ def env_apply(env_name):
     job = json.loads(response.content)
 
     # loading until infra status is complete
-    spinner = Halo(text="creating infrastructure ...", spinner="dots")
+    print("creating infrastructure ...")
+    spinner = Halo(text="", spinner="dots")
     spinner.start()
+
+    if verbose:
+        with api.stream_deployment_logs(projectName, job['job_id']) as r:
+            for line in r.iter_lines():
+                line = line.decode("utf-8")
+                print(line)
+
     while True:
         statusResponse = api.get_infra_deployment_info(projectName, job['job_id'])
         print(statusResponse.content)
         jobStatus = json.loads(statusResponse.content)
+
+
         if jobStatus["status"] == "COMPLETED":
             break
         elif jobStatus["status"] == "FAILED":

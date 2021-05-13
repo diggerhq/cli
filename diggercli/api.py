@@ -18,7 +18,7 @@ def get_github_token():
     token = f.readline().strip()
     return token
 
-def do_api(method, endpoint, data, auth_token=None):
+def do_api(method, endpoint, data, stream=False, auth_token=None):
     if auth_token is not None:
         headers = {
             "Authorization": f"Token {auth_token}"
@@ -27,6 +27,7 @@ def do_api(method, endpoint, data, auth_token=None):
         headers={}
     response = requests.request(
         method=method, 
+        stream=stream,
         url=endpoint, 
         data=data, 
         headers=headers
@@ -234,6 +235,16 @@ def get_infra_deployment_info(projectName, deploymentId):
         "GET",
         f"{BACKEND_ENDPOINT}/api/projects/{projectName}/deployments/{deploymentId}/",
         {},
+        auth_token=token
+    )
+
+def stream_deployment_logs(projectName, deploymentId):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/stream_deployment_logs/{deploymentId}/",
+        {},
+        stream=True,
         auth_token=token
     )
 
