@@ -314,53 +314,12 @@ def version():
 
 @cli.command()
 def auth():
+    """
+        Authenticate with the cli
+    """
     # report_async({"command": f"dg auth"}, status="start")    
     fetch_github_token()
     report_async({"command": f"dg auth"}, status="complete")
-
-@cli.command()
-def init():
-    # report_async({"command": f"dg auth"}, status="start")
-    spinner = Halo(text="Detecting project type", spinner='dots')
-    spinner.start()
-    print()
-    currentPath = os.getcwd()
-    detector = diggerconfig.ProjectDetector()
-    service = detector.detect_service(currentPath)
-    spinner.stop()
-
-    if service.type == detector.UNKNOWN:
-        Bcolors.fail("unknown Project type, please see following link for digger.yml authoring help")
-        Bcolors.okgreen("https://docs.digger.dev/Authoring-digger-yml-configs-1e65111713504d68b959e38227b70216")
-        return
-
-    if service.type != detector.DIGGER:
-        # generating digger.yml
-        Bcolors.okgreen(f"found project of type '{service.type}' ... Generating config")
-        services = [service,]
-        generator = diggerconfig.Generator(services)
-        generator.dump_yaml()
-        Bcolors.okgreen("digger.yml created successfully, please review and make sure settings are fine")
-
-    # digger.yml confirmation
-    Bcolors.warn("digger configuration found")
-    Bcolors.warn("Generating project ID")
-    temporaryProjectId = create_temporary_project()
-    Bcolors.okgreen("Project generation successful")
-
-    print("--- digger.yml ---")
-    print(open("digger.yml", "r").read())
-    print("-------")
-    Bcolors.warn("Please read the configuration and confirm it is correct.")
-    Bcolors.warn("Proceed with initial deployment (y/n)?")
-    answer = input()
-    if answer.lower() != "y": 
-        print("Modify the digger.yml and run dg init try again")
-        return
-    settings = diggerconfig.Generator.load_yaml()
-    fetch_github_token_with_cli_callback(temporaryProjectId)
-
-    # report_async({"command": f"dg init"}, status="complete")
 
 
 def validate_project_name(ctx, param, value):
@@ -473,7 +432,9 @@ def env_describe(env_name):
     pprint(infraDeploymentDetails)
     
     report_async({"command": f"dg env details"}, settings=settings, status="complete")
+import subprocess
 
+subprocess.STDOUT
 
 @env.command(name="create")
 @click.argument("env_name", nargs=1, required=True)
