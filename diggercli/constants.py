@@ -25,6 +25,7 @@ DIGGER_SPLASH = """
 DIGGER_ENV_TOKEN_NAME = "DIGGER_TOKEN"
 BASE_PATH = get_base_path()
 HOMEDIR_PATH = str(Path.home())
+DIGGER_CONFIG_FILE = "digger.config.yml"
 AWS_HOME_PATH = f"{HOMEDIR_PATH}/.aws"
 AWSCREDS_FILE_PATH = f"{AWS_HOME_PATH}/credentials"
 DIGGERHOME_PATH = os.path.join(HOMEDIR_PATH, ".digger/")

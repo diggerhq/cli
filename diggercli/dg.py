@@ -16,6 +16,7 @@ from pathlib import Path
 from collections import OrderedDict
 import subprocess
 from jinja2 import Template
+import yaml
 from oyaml import load as yload, dump as ydump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -50,7 +51,7 @@ from diggercli.constants import (
     AWS_REGIONS,
 )
 from diggercli.utils.pprint import Bcolors, Halo, spin
-from diggercli.utils.misc import parse_env_config_options
+from diggercli.utils.misc import parse_env_config_options, read_env_config_from_file
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 
@@ -461,7 +462,13 @@ def env_create(
         sys.exit()
 
     # parsing config options
-    configOptions = parse_env_config_options(config)
+
+    cliOptions = parse_env_config_options(config)
+    try:
+        configOptions = read_env_config_from_file(env_name, overrideOptions=cliOptions)
+    except yaml.YAMLError as ex:
+        print(f"Could not read config file: {exc}")
+        return
 
     targets = get_targets()
     settings = get_project_settings()
@@ -554,6 +561,13 @@ def env_update(env_name, target=None, config=None, aws_key=None, aws_secret=None
         data["target"] = target
     if config is not None:
         data["config_options"] = parse_env_config_options(config)
+        cliOptions = parse_env_config_options(config)
+        try:
+            configOptions = read_env_config_from_file(env_name, overrideOptions=cliOptions)
+        except yaml.YAMLError as ex:
+            print(f"Could not parse config file: {exc}")
+            return
+        data["config_options"] = configOptions
         data["config_options"] = json.dumps(data["config_options"])
     if aws_key is not None:
         data["aws_key"] = aws_key
