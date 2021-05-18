@@ -263,7 +263,7 @@ def services():
 def get_targets():
     return {
         "AWS ECS Fargate": "diggerhq/target-fargate@v1.0.4",
-        "AWS lambda (experimental)": "diggerhq/target-lambda@master"
+        "AWS lambda (experimental)": "diggerhq/target-lambda@master",
         "(soon!) AWS EKS": "aws_eks",
         "(soon!) Google Cloud Run": "gcp_cloudrun",
         "other": "other",
