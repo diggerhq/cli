@@ -137,7 +137,7 @@ def get_env_vars(envName, serviceName):
 
 def retreive_aws_creds(projectName, environment, aws_key=None, aws_secret=None, prompt=True):
     diggercredsFile = os.path.join(DIGGERHOME_PATH, "credentials")
-    profileName = f"{projectName}-{environment}"
+    profileName = f"{projectName}"
     diggerconfig = configparser.ConfigParser()
     diggerconfig.read(diggercredsFile)
 

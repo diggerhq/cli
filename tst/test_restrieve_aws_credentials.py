@@ -19,7 +19,7 @@ def override_creds_file():
     global tmpdirname
     f = open(os.path.join(tmpdirname.name, "credentials"), "w")
     f.write("""
-[project-environment]
+[project]
 aws_access_key_id = file_aws_key
 aws_secret_access_key = file_aws_secret
 """)
