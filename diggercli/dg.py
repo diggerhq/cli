@@ -721,6 +721,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         service_key = service
 
     service_name = settings["services"][service_key]["service_name"]
+    service_path = settings["services"][service_key]["path"]
     dockerfile = settings["services"][service_key]["dockerfile"]
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
     project_name = settings["project"]["name"]
@@ -730,7 +731,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     infraDeploymentDetails = json.loads(response.content)
     docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
     if context is None:
-        context = f"{service_key}/"
+        context = f"{service_path}/"
 
     if remote:
         os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
