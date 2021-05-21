@@ -260,13 +260,19 @@ def services():
         # }
     ]
 
-def get_targets():
-    return {
-        "AWS ECS Fargate": "diggerhq/target-fargate@v1.0.4",
-        "AWS lambda (experimental)": "diggerhq/target-lambda@master",
-        "(soon!) AWS EKS": "aws_eks",
-        "(soon!) Google Cloud Run": "gcp_cloudrun",
-        "other": "other",
+class DiggerTargets:
+    FARGATE = "AWS ECS Fargate"
+    LAMBDA = "AWS lambda (experimental)"
+    EKS = "(soon!) AWS EKS"
+    GCR = "(soon!) Google Cloud Run"
+    OTHER = "other"
+
+    TARGETS = {
+        FARGATE: "diggerhq/target-fargate@v1.0.4",
+        LAMBDA: "diggerhq/target-lambda@master",
+        EKS: "aws_eks",
+        GCR: "gcp_cloudrun",
+        OTHER: "other",
     }
 
 def get_service_names():
@@ -470,7 +476,7 @@ def env_create(
         print(f"Could not read config file: {exc}")
         return
 
-    targets = get_targets()
+    targets = DiggerTargets.TARGETS
     settings = get_project_settings()
     report_async({"command": f"dg env create"}, settings=settings, status="start")
     project_name = settings["project"]["name"]
@@ -498,7 +504,7 @@ def env_create(
                 print(f"Confirm Target {target} (Y/N)?", end="")
                 ok = input()
 
-        elif target_key not in ["AWS ECS Fargate", "AWS lambda (experimental)"]:
+        elif target_key not in [DiggerTargets.FARGATE, DiggerTargets.LAMBDA]:
             Bcolors.fail("This option is currently unsupported! Please try again")
             return
     else:
