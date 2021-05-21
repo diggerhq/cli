@@ -498,7 +498,7 @@ def env_create(
                 print(f"Confirm Target {target} (Y/N)?", end="")
                 ok = input()
 
-        elif target_key not in ["AWS ECS Fargate", "Digger Paas"]:
+        elif target_key not in ["AWS ECS Fargate", "AWS lambda (experimental)"]:
             Bcolors.fail("This option is currently unsupported! Please try again")
             return
     else:
