@@ -846,6 +846,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         "task_name": f"{project_name}-{env_name}-{service_name}",
         "region": region,
         "image_url": f"{docker_registry}:{tag}",
+        "tag": tag,
         "aws_key": awsKey,
         "aws_secret": awsSecret,
         "env_vars": json.dumps(envVars)
