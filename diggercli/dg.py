@@ -953,9 +953,15 @@ def project_init(name=None):
     action = "init"
     report_async({"command": f"dg project init"}, status="start")
 
+    update_existing_yaml = False
     if os.path.exists("digger.yml"):
-        Bcolors.fail("digger.yml found, cannot initialize project again")
-        sys.exit(1)
+        Bcolors.warn("digger.yml found, would you like to initialize new project (Y/N)? ")
+        answer = input()
+        if answer.lower() == "n":
+            Bcolors.fail("aborting ...")
+            sys.exit(1)
+        else:
+            update_existing_yaml = True
 
     if name is None:
         defaultProjectName = os.path.basename(os.getcwd())
@@ -980,7 +986,11 @@ def project_init(name=None):
 
     spinner = Halo(text='Initializing project: ' + project_name, spinner='dots')
     spinner.start()
-    settings = init_project(project_name)
+    if update_existing_yaml:
+        settings = get_project_settings()
+        settings["project"]["name"] = project_name
+    else:
+        settings = init_project(project_name)
     update_digger_yaml(settings)  
     spinner.stop()
 
