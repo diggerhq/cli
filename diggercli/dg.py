@@ -693,6 +693,82 @@ def env_sync_tform(env_name):
     Bcolors.okgreen("Terraform updated successfully")        
     report_async({"command": f"dg env sync-tform"}, settings=settings, status="complete")
 
+
+@env.command(name="vars:list")
+@click.argument("env_name", nargs=1, required=True)
+def env_vars_list(env_name):
+    """
+        List environment variables for an environment
+    """
+    action = "vars:list"
+    settings = get_project_settings()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+    project_name = settings["project"]["name"]
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+    envVars = api.environment_vars_list(project_name, envId)
+    envVars = json.loads(envVars.content)["results"]
+    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+    pprint(envVars)
+
+
+@env.command(name="vars:create")
+@click.argument("env_name", nargs=1, required=True)
+@click.option('--file', required=True)
+def env_vars_create(env_name, file):
+    """
+        Update environment variables for an environment based on .yml file
+    """
+    action = "vars:create"
+    if not os.path.exists(file):
+        Bcolors.fail("File does not exist")
+        sys.exit(1)
+
+    settings = get_project_settings()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+
+    project_name = settings["project"]["name"]
+    Bcolors.warn("Note: Environment update will fail if duplicate variables names exist. Proceed? (Y,N)")
+    answer = input()
+    if answer.lower() != "y":
+        Bcolors.fail("Aborting ...")
+        sys.exit(1)
+
+    try:
+        varsToCreate = yload(open(file), Loader=Loader)
+    except Exception as e:
+        Bcolors.fail("Error while loading vars file")
+        print(e)
+        sys.exit(1)
+
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+
+    services = api.list_services(project_name)
+    services = json.loads(services.content)["results"]
+    servicesDict = {}
+    for s in services:
+        servicesDict[s["name"]] = s
+
+    for serviceName, varItems in varsToCreate.items():
+        if serviceName == "all":
+            servicePk = None
+        else:
+            if serviceName not in servicesDict.keys():
+                Bcolors.fail(f"serviceName not found in backend: {serviceName}")
+                sys.exit(1)
+            servicePk = servicesDict[serviceName]["pk"]
+
+        Bcolors.okgreen(f"Creating vars for service: {serviceName}:")
+        for varName, varValue in varItems.items():
+            Bcolors.okgreen(f"> Creating var ({varName}, {varValue}) ...")
+            response = api.environment_vars_create(project_name, envId, varName, varValue, servicePk)
+            Bcolors.okgreen(f">> Created!")
+
+
+    report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+
 @env.command(name="build")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
