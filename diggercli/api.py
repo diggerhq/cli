@@ -46,11 +46,22 @@ def check_project_name(projectName):
         auth_token=token
     )
 
-def get_service(projectName, serviceName):
+
+def list_services(projectName):
     token = get_github_token()
     return do_api(
         "GET",
-        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/{serviceName}",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/",
+        {},
+        auth_token=token
+    )
+
+
+def get_service(projectName, servicePk):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/services/{servicePk}/",
         {},
         auth_token=token
     )
@@ -173,6 +184,31 @@ def estimate_cost(projectName, environmentId):
         {},
         auth_token=token
     )
+
+
+def environment_vars_list(projectName, environmentId):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/configs/",
+        {},
+        auth_token=token
+    )
+
+
+def environment_vars_create(projectName, environmentId, name, value, servicePk):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/configs/",
+        {
+            "name": name,
+            "value": value,
+            "service": servicePk
+        },
+        auth_token=token
+    )
+
 
 def destroy_environment(projectName, environmentId, data):
     token = get_github_token()
