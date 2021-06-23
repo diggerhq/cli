@@ -64,3 +64,9 @@ AWS_REGIONS = [
     "us-gov-east-1",
     "us-gov-west-1",
 ]
+
+class ServiceType:
+    CONTAINER  = "container"
+    SERVERLESS = "serverless"
+    WEBAPP = "webapp"
+    
