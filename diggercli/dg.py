@@ -49,6 +49,7 @@ from diggercli.constants import (
     DIGGERHOME_PATH,
     AWS_HOME_PATH,
     AWS_REGIONS,
+    ServiceType,
 )
 from diggercli.utils.pprint import Bcolors, Halo, spin
 from diggercli.utils.misc import parse_env_config_options, read_env_config_from_file
@@ -778,6 +779,8 @@ def env_vars_create(env_name, file):
 def env_build(env_name, service, remote, context=None, tag="latest"):
     action = "build"
     settings = get_project_settings()
+    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
+
 
     if service is None:
         defaultProjectName = os.path.basename(os.getcwd())
@@ -797,24 +800,35 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         service_key = service
 
     service_name = settings["services"][service_key]["service_name"]
+    service_type = settings["services"][service_key]["service_type"]
     service_path = settings["services"][service_key]["path"]
-    dockerfile = settings["services"][service_key]["dockerfile"]
-    report_async({"command": f"dg env {action}"}, settings=settings, status="start")
-    project_name = settings["project"]["name"]
-    envDetails = api.get_environment_details(project_name, env_name)
-    envId = envDetails["pk"]
-    response = api.get_last_infra_deployment_info(project_name, envId)
-    infraDeploymentDetails = json.loads(response.content)
-    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+
     if context is None:
         context = f"{service_path}/"
 
-    if remote:
-        os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
 
-    subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
-                      context]).communicate()
-    subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
+    if service_type == ServiceType.WEBAPP:
+        build_command = settings["services"][service_key]["build_command"]
+        build_command = build_command.split(" ")
+        # run it in service context
+        build_command = build_command + ["--prefix", context]
+        subprocess.run(build_command, check=True)
+    else:
+        dockerfile = settings["services"][service_key]["dockerfile"]
+        project_name = settings["project"]["name"]
+        envDetails = api.get_environment_details(project_name, env_name)
+        envId = envDetails["pk"]
+        response = api.get_last_infra_deployment_info(project_name, envId)
+        infraDeploymentDetails = json.loads(response.content)
+        docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+
+
+        if remote:
+            os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
+
+        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
+                          context]).communicate()
+        subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
@@ -849,6 +863,12 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
 
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
+    service_type = settings["services"][service_key]["service_type"]
+
+    if service_type == ServiceType.WEBAPP:
+        Bcolors.warn("Webapps don't support push command, only build and release!")
+        sys.exit(1)
+        
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
@@ -901,13 +921,11 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
+    service_type = settings["services"][service_key]["service_type"]
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
     response = api.get_last_infra_deployment_info(project_name, envId)
     infraDeploymentDetails = json.loads(response.content)
-    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
-    lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
-    region = infraDeploymentDetails["region"]
     credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
     awsKey = credentials["aws_key"]
     awsSecret = credentials["aws_secret"]
@@ -915,24 +933,40 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
     spinner = Halo(text="deploying ...", spinner="dots")
     spinner.start()
-    response = api.deploy_to_infra({
-        "environment_pk": f"{envId}",
-        "cluster_name": f"{project_name}-{env_name}",
-        "service_name": f"{service_name}",
-        "task_name": f"{project_name}-{env_name}-{service_name}",
-        "region": region,
-        "image_url": f"{docker_registry}:{tag}",
-        "tag": tag,
-        "aws_key": awsKey,
-        "aws_secret": awsSecret,
-        "env_vars": json.dumps(envVars)
-    })
+    if service_type == ServiceType.WEBAPP:
+        os.environ["AWS_ACCESS_KEY_ID"] = awsKey
+        os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
+        build_directory = settings["services"][service_key]["build_directory"]
+        # TODO: find better way to extract bucket name of webapp
+        bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
 
-    output = json.loads(response.content)
+        subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
+
+        Bcolors.okgreen("Upload succeeded!")
+    else:
+        docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+        lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
+        region = infraDeploymentDetails["region"]
+
+        response = api.deploy_to_infra({
+            "environment_pk": f"{envId}",
+            "cluster_name": f"{project_name}-{env_name}",
+            "service_name": f"{service_name}",
+            "task_name": f"{project_name}-{env_name}-{service_name}",
+            "region": region,
+            "image_url": f"{docker_registry}:{tag}",
+            "tag": tag,
+            "aws_key": awsKey,
+            "aws_secret": awsSecret,
+            "env_vars": json.dumps(envVars)
+        })
+
+        output = json.loads(response.content)
+
+        print(output["msg"])
+        print(f"your deployment URL: http://{lb_url}")
+
     spinner.stop()
-
-    print(output["msg"])
-    print(f"your deployment URL: http://{lb_url}")
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
