@@ -893,16 +893,73 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
 @env.command(name="release")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
+@click.option('--all-services/--not-all-services', default=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
 @click.option('--prompt/--no-prompt', default=False)
 @click.option('--tag', default="latest")
-def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, prompt=False):
+def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, all_services=False, prompt=False):
+
+
+    def perform_release(settings, env_name, service_key):
+        project_name = settings["project"]["name"]
+        service_name = settings["services"][service_key]["service_name"]
+        service_type = settings["services"][service_key]["service_type"]
+        envDetails = api.get_environment_details(project_name, env_name)
+        envId = envDetails["pk"]
+        response = api.get_last_infra_deployment_info(project_name, envId)
+        infraDeploymentDetails = json.loads(response.content)
+        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+        awsKey = credentials["aws_key"]
+        awsSecret = credentials["aws_secret"]
+        envVars = {} #get_env_vars(env_name, service_key)
+
+        spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
+        spinner.start()
+        if service_type == ServiceType.WEBAPP:
+            os.environ["AWS_ACCESS_KEY_ID"] = awsKey
+            os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
+            build_directory = settings["services"][service_key]["build_directory"]
+            # TODO: find better way to extract bucket name of webapp
+            bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
+
+            subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
+
+            Bcolors.okgreen("Upload succeeded!")
+        else:
+            docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+            lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
+            region = infraDeploymentDetails["region"]
+
+            response = api.deploy_to_infra({
+                "environment_pk": f"{envId}",
+                "cluster_name": f"{project_name}-{env_name}",
+                "service_name": f"{service_name}",
+                "task_name": f"{project_name}-{env_name}-{service_name}",
+                "region": region,
+                "image_url": f"{docker_registry}:{tag}",
+                "tag": tag,
+                "aws_key": awsKey,
+                "aws_secret": awsSecret,
+                "env_vars": json.dumps(envVars)
+            })
+
+            output = json.loads(response.content)
+
+            print(output["msg"])
+            print(f"your deployment URL: http://{lb_url}")
+
+        spinner.stop()
+
     action = "deploy"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
 
-    if service is None:
+    if all_services:
+        service_keys = list(settings["services"].keys())
+    elif service is not None:
+        service_keys = [service]
+    else:
         defaultProjectName = os.path.basename(os.getcwd())
         questions = [
             {
@@ -915,58 +972,11 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
         answers = pyprompt(questions)
 
-        service_key = answers["service_name"]
-    else:
-        service_key = service
+        service_keys = [answers["service_name"]]
 
-    project_name = settings["project"]["name"]
-    service_name = settings["services"][service_key]["service_name"]
-    service_type = settings["services"][service_key]["service_type"]
-    envDetails = api.get_environment_details(project_name, env_name)
-    envId = envDetails["pk"]
-    response = api.get_last_infra_deployment_info(project_name, envId)
-    infraDeploymentDetails = json.loads(response.content)
-    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-    awsKey = credentials["aws_key"]
-    awsSecret = credentials["aws_secret"]
-    envVars = {} #get_env_vars(env_name, service_key)
+    for service_key in service_keys:
+        perform_release(settings, env_name, service_key)
 
-    spinner = Halo(text="deploying ...", spinner="dots")
-    spinner.start()
-    if service_type == ServiceType.WEBAPP:
-        os.environ["AWS_ACCESS_KEY_ID"] = awsKey
-        os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
-        build_directory = settings["services"][service_key]["build_directory"]
-        # TODO: find better way to extract bucket name of webapp
-        bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
-
-        subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
-
-        Bcolors.okgreen("Upload succeeded!")
-    else:
-        docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
-        lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
-        region = infraDeploymentDetails["region"]
-
-        response = api.deploy_to_infra({
-            "environment_pk": f"{envId}",
-            "cluster_name": f"{project_name}-{env_name}",
-            "service_name": f"{service_name}",
-            "task_name": f"{project_name}-{env_name}-{service_name}",
-            "region": region,
-            "image_url": f"{docker_registry}:{tag}",
-            "tag": tag,
-            "aws_key": awsKey,
-            "aws_secret": awsSecret,
-            "env_vars": json.dumps(envVars)
-        })
-
-        output = json.loads(response.content)
-
-        print(output["msg"])
-        print(f"your deployment URL: http://{lb_url}")
-
-    spinner.stop()
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
