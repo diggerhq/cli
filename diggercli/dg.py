@@ -716,9 +716,12 @@ def env_vars_list(env_name):
 @env.command(name="vars:create")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--file', required=True)
-def env_vars_create(env_name, file):
+@click.option('--overwrite/--no-overwrite', default=False)
+@click.option('--prompt/--no-prompt', default=True)
+def env_vars_create(env_name, file, prompt=True, overwrite=False):
     """
         Update environment variables for an environment based on .yml file
+        --overwrite forces overwriting of existing variables
     """
     action = "vars:create"
     if not os.path.exists(file):
@@ -729,11 +732,14 @@ def env_vars_create(env_name, file):
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
 
     project_name = settings["project"]["name"]
-    Bcolors.warn("Note: Environment update will fail if duplicate variables names exist. Proceed? (Y,N)")
-    answer = input()
-    if answer.lower() != "y":
-        Bcolors.fail("Aborting ...")
-        sys.exit(1)
+    if prompt and not overwrite:
+        Bcolors.warn("Note: Environment update will fail if duplicate variables names exist. Proceed? (Y,N)")
+        Bcolors.okgreen("Hint: If you wish to overwrite existing vars use the --overwrite option along with this command")
+
+        answer = input()
+        if answer.lower() != "y":
+            Bcolors.fail("Aborting ...")
+            sys.exit(1)
 
     try:
         varsToCreate = yload(open(file), Loader=Loader)
@@ -763,7 +769,14 @@ def env_vars_create(env_name, file):
         Bcolors.okgreen(f"Creating vars for service: {serviceName}:")
         for varName, varValue in varItems.items():
             Bcolors.okgreen(f"> Creating var ({varName}, {varValue}) ...")
-            response = api.environment_vars_create(project_name, envId, varName, varValue, servicePk)
+            response = api.environment_vars_create(
+                project_name, 
+                envId, 
+                varName, 
+                varValue, 
+                servicePk,
+                overwrite=overwrite
+            )
             Bcolors.okgreen(f">> Created!")
 
 
