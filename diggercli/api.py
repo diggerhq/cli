@@ -29,7 +29,7 @@ def do_api(method, endpoint, data, stream=False, auth_token=None):
         method=method, 
         stream=stream,
         url=endpoint, 
-        data=data, 
+        json=data, 
         headers=headers
     )
     if response.status_code//100 != 2:
@@ -196,7 +196,7 @@ def environment_vars_list(projectName, environmentId):
     )
 
 
-def environment_vars_create(projectName, environmentId, name, value, servicePk):
+def environment_vars_create(projectName, environmentId, name, value, servicePk, overwrite=False):
     token = get_github_token()
     return do_api(
         "POST",
@@ -204,7 +204,8 @@ def environment_vars_create(projectName, environmentId, name, value, servicePk):
         {
             "name": name,
             "value": value,
-            "service": servicePk
+            "service": servicePk,
+            "overwrite": overwrite,
         },
         auth_token=token
     )
