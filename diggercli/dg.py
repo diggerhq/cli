@@ -288,7 +288,7 @@ def modes():
 def report_async(payload, settings=None, status="start"):
     if settings is not None:
         payload.update({
-            "settings": json.dumps(settings),
+            "settings": settings,
         })
     payload.update({"status": status})
     x = threading.Thread(target=api.cli_report, args=(payload,))
@@ -542,7 +542,7 @@ def env_create(
         "region": region,
         "aws_key": aws_key,
         "aws_secret": aws_secret,
-        "config_options": json.dumps(configOptions)
+        "config_options": configOptions
     })
     spinner.stop()
 
@@ -575,7 +575,7 @@ def env_update(env_name, target=None, config=None, aws_key=None, aws_secret=None
             print(f"Could not parse config file: {exc}")
             return
         data["config_options"] = configOptions
-        data["config_options"] = json.dumps(data["config_options"])
+        data["config_options"] = data["config_options"]
     if aws_key is not None:
         data["aws_key"] = aws_key
     if aws_secret is not None:
@@ -954,7 +954,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
                 "tag": tag,
                 "aws_key": awsKey,
                 "aws_secret": awsSecret,
-                "env_vars": json.dumps(envVars)
+                "env_vars": envVars
             })
 
             output = json.loads(response.content)
@@ -1037,7 +1037,7 @@ def env_destroy(env_name, project_name=None, aws_key=None, aws_secret=None, prom
         if jobStatus["status"] == "DESTROYED":
             break
         elif jobStatus["status"] == "FAILED":
-            Bcolors.fail("Could not create infrastructure")
+            Bcolors.fail("Could not destroy infrastructure")
             print(jobStatus["fail_message"])
             sys.exit(1)
         time.sleep(2)
@@ -1211,8 +1211,8 @@ def sync():
     services = settings["services"]
     for key, service in services.items():
         service["name"] = service["service_name"]
-    servicesList = json.dumps(list(services.values()))
-    api.sync_services(projectName, {"services": servicesList})
+    servicesList = list(services.values())
+    api.sync_services(projectName, {"services": json.dumps(servicesList)})
     Bcolors.okgreen("digger.yml services synced with backend successfully")
 
 
