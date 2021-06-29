@@ -29,7 +29,7 @@ def do_api(method, endpoint, data, stream=False, auth_token=None):
         method=method, 
         stream=stream,
         url=endpoint, 
-        data=data, 
+        json=data, 
         headers=headers
     )
     if response.status_code//100 != 2:
