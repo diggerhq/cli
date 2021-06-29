@@ -1211,8 +1211,8 @@ def sync():
     services = settings["services"]
     for key, service in services.items():
         service["name"] = service["service_name"]
-    servicesList = list(services.values())
-    api.sync_services(projectName, {"services": json.dumps(servicesList)})
+    servicesList = json.dumps(list(services.values()))
+    api.sync_services(projectName, {"services": servicesList})
     Bcolors.okgreen("digger.yml services synced with backend successfully")
 
 
