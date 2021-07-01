@@ -105,6 +105,15 @@ def create_project(projectName):
         auth_token=token
     )
 
+def generate_project(projectName):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/diggeryml/",
+        {},
+        auth_token=token
+    )
+
 
 def generate_tmp_project(data):
     return do_api(

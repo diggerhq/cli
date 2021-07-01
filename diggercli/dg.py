@@ -880,7 +880,7 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
 
     if service_type == ServiceType.WEBAPP:
         Bcolors.warn("Webapps don't support push command, only build and release!")
-        sys.exit(1)
+        sys.exit(0)
         
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
@@ -1130,6 +1130,49 @@ def project_init(name=None):
 
     print("project initiated successfully")
     report_async({"command": f"dg project init"}, settings=settings, status="copmlete")
+
+
+
+@project.command(name="generate")
+@click.option("--name", nargs=1, required=False, callback=validate_project_name)
+def project_generate_yml(name=None):
+    action = "init"
+    report_async({"command": f"dg project generate"}, status="start")
+
+    update_existing_yaml = False
+    if os.path.exists("digger.yml"):
+        Bcolors.warn("digger.yml found, please remove before running command")
+        sys.exit(0)
+
+    if name is None:
+        defaultProjectName = os.path.basename(os.getcwd())
+        questions = [
+            {
+                'type': 'input',
+                'name': 'project_name',
+                'message': 'Enter project name',
+                'default': defaultProjectName,
+                'validate': ProjectNameValidator
+            },
+        ]
+
+        answers = pyprompt(questions)
+
+        project_name = answers["project_name"]
+    else:
+        project_name = name
+
+    spinner = Halo(text='Generating project: ' + project_name, spinner='dots')
+    spinner.start()
+    response = api.generate_project(project_name)
+    settings = json.loads(response.content)
+    f = open(digger_yaml(), "w")
+    ydump(settings, f)
+    spinner.stop()
+
+    print("project generated successfully")
+    report_async({"command": f"dg project generate"}, settings=settings, status="complete")
+
 
 
 @cli.group()
