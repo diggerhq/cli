@@ -1162,8 +1162,6 @@ def project_generate_yml(name=None):
     else:
         project_name = name
 
-    
-
     spinner = Halo(text='Generating project: ' + project_name, spinner='dots')
     spinner.start()
     response = api.generate_project(project_name)
@@ -1171,9 +1169,9 @@ def project_generate_yml(name=None):
     f = open(digger_yaml(), "w")
     ydump(settings, f)
     spinner.stop()
-    
+
     print("project generated successfully")
-    report_async({"command": f"dg project generate"}, settings=settings, status="copmlete")
+    report_async({"command": f"dg project generate"}, settings=settings, status="complete")
 
 
 
