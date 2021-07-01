@@ -880,7 +880,7 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
 
     if service_type == ServiceType.WEBAPP:
         Bcolors.warn("Webapps don't support push command, only build and release!")
-        sys.exit(1)
+        sys.exit(0)
         
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
