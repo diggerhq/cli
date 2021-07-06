@@ -824,6 +824,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         build_command = settings["services"][service_key]["build_command"]
         build_command = build_command.split(" ")
         # run it in service context
+        subprocess.run(["npm", "install", "--prefix", context], check=True)
         build_command = build_command + ["--prefix", context]
         subprocess.run(build_command, check=True)
     else:
