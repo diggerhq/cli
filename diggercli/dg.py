@@ -840,9 +840,9 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         if remote:
             os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
 
-        subprocess.Popen(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
-                          context]).communicate()
-        subprocess.Popen(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"]).communicate()
+        subprocess.run(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
+                          context], check=True)
+        subprocess.run(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"], check=True)
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
@@ -899,8 +899,8 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
     os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
     proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
     docker_auth = proc.stdout.decode("utf-8")
-    subprocess.Popen(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint]).communicate()
-    subprocess.Popen(["docker", "push", f"{docker_registry}:{tag}"]).communicate()
+    subprocess.run(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint], check=True)
+    subprocess.run(["docker", "push", f"{docker_registry}:{tag}"], check=True)
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
