@@ -1,12 +1,30 @@
-from halo import Halo
+import sys
 import time
+from halo import Halo as TrueHalo
 
 def spin(t, msg, mode='dots'):
     spinner = Halo(text=msg, spinner=mode)
     spinner.start()
     time.sleep(t)
     spinner.stop()
-    
+
+
+class FakeHalo(TrueHalo):
+    def start(self, **kwargs): 
+        if self.text:
+            print(self.text)
+
+    def stop (self, **kwargs): pass
+
+
+def Halo(**kwargs):
+
+    if sys.stdout.isatty():
+        return TrueHalo(**kwargs)
+    else:
+        return FakeHalo(**kwargs)
+
+
 class Bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
