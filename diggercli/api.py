@@ -56,6 +56,14 @@ def list_services(projectName):
         auth_token=token
     )
 
+def get_service_by_name(projectName, serviceName):
+    response = list_services(projectName)
+    service_list = json.loads(response.content)["results"]
+    for service in service_list:
+        if service["name"] == serviceName:
+            return service
+    raise ApiRequestException("Service not found")
+
 
 def get_service(projectName, servicePk):
     token = get_github_token()

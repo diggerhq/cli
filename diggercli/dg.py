@@ -812,26 +812,38 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     else:
         service_key = service
 
+    project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
     service_path = settings["services"][service_key]["path"]
+    envDetails = api.get_environment_details(project_name, env_name)
+    envId = envDetails["pk"]
+
 
     if context is None:
         context = f"{service_path}/"
 
 
+
     if service_type == ServiceType.WEBAPP:
         build_command = settings["services"][service_key]["build_command"]
         build_command = build_command.split(" ")
+
+        # expose env variables
+        serviceDetails = api.get_service_by_name(project_name, service_name)
+        servicePk = serviceDetails["pk"]
+        envVars = api.environment_vars_list(project_name, envId)
+        envVars = json.loads(envVars.content)["results"]
+        for var in envVars:
+            if var["service"] is None or var["service"] == servicePk:
+                os.environ[var["name"]] = var["value"]
+
         # run it in service context
         subprocess.run(["npm", "install", "--prefix", context], check=True)
         build_command = build_command + ["--prefix", context]
         subprocess.run(build_command, check=True)
     else:
         dockerfile = settings["services"][service_key]["dockerfile"]
-        project_name = settings["project"]["name"]
-        envDetails = api.get_environment_details(project_name, env_name)
-        envId = envDetails["pk"]
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
         docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
