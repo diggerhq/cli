@@ -35,7 +35,7 @@ setup(
         "six==1.15.0",
         "spinners==0.0.24",
         "termcolor==1.1.0",
-        "urllib3==1.25.11",
+        "urllib3==1.26.5",
         "wcwidth==0.2.5",
         "boto3==1.17.11",
     ],
