@@ -30,7 +30,7 @@ setup(
         "python-dotenv==0.15.0",
         "PyYAML==5.4",
         "regex==2020.10.15",
-        "requests==2.24.0",
+        "requests==2.26.0",
         "rsa==4.7",
         "six==1.15.0",
         "spinners==0.0.24",
