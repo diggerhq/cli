@@ -827,7 +827,6 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 
     if service_type == ServiceType.WEBAPP:
         build_command = settings["services"][service_key]["build_command"]
-        build_command = build_command.split(" ")
 
         # expose env variables
         serviceDetails = api.get_service_by_name(project_name, service_name)
@@ -840,8 +839,13 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 
         # run it in service context
         subprocess.run(["npm", "install", "--prefix", context], check=True)
-        build_command = build_command + ["--prefix", context]
-        subprocess.run(build_command, check=True)
+
+        # ensure that && separator works as expected
+        for cmd in build_command.split("&&"):
+            current_cmd = cmd.strip().split(" ")
+            if current_cmd[0] == "npm":
+                current_cmd = current_cmd + ["--prefix", context]
+            subprocess.run(current_cmd, check=True)
     else:
         dockerfile = settings["services"][service_key]["dockerfile"]
         response = api.get_last_infra_deployment_info(project_name, envId)
