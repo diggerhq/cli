@@ -818,11 +818,14 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     service_path = settings["services"][service_key]["path"]
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
-
+    exposeVarsAtBuild = envDetails["inject_env_variables_at_build_time"]
 
     if context is None:
         context = f"{service_path}/"
-
+    
+    envVars = api.environment_vars_list(project_name, envId)
+    envVars = json.loads(envVars.content)["results"]
+        
 
 
     if service_type == ServiceType.WEBAPP:
@@ -831,8 +834,6 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         # expose env variables
         serviceDetails = api.get_service_by_name(project_name, service_name)
         servicePk = serviceDetails["pk"]
-        envVars = api.environment_vars_list(project_name, envId)
-        envVars = json.loads(envVars.content)["results"]
         for var in envVars:
             if var["service"] is None or var["service"] == servicePk:
                 os.environ[var["name"]] = var["value"]
@@ -856,8 +857,18 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         if remote:
             os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
 
-        subprocess.run(["docker", "build", "-t", f"{project_name}-{service_name}:{tag}", "-f", f"{dockerfile}",
-                          context], check=True)
+        buildArgs = []
+        if exposeVarsAtBuild:
+            for var in envVars:
+                if var["service"] is None or var["service"] == servicePk:
+                    os.environ[var["name"]] = var["value"]
+                    buildArgs = buildArgs + ["--build-arg", var["name"]]
+
+        docker_build_command = ["docker", "build", "-t", f"{project_name}-{service_name}:{tag}"] + \
+                               buildArgs + \
+                               ["-f", f"{dockerfile}", context]
+
+        subprocess.run(docker_build_command, check=True)
         subprocess.run(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"], check=True)
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
