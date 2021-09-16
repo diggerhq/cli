@@ -825,15 +825,15 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     
     envVars = api.environment_vars_list(project_name, envId)
     envVars = json.loads(envVars.content)["results"]
-        
-
+    
+    serviceDetails = api.get_service_by_name(project_name, service_name)
+    servicePk = serviceDetails["pk"]
 
     if service_type == ServiceType.WEBAPP:
         build_command = settings["services"][service_key]["build_command"]
 
         # expose env variables
-        serviceDetails = api.get_service_by_name(project_name, service_name)
-        servicePk = serviceDetails["pk"]
+
         for var in envVars:
             if var["service"] is None or var["service"] == servicePk:
                 os.environ[var["name"]] = var["value"]
