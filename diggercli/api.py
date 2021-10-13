@@ -187,7 +187,7 @@ def apply_environment(projectName, environmentId):
 def plan_environment(projectName, environmentId):
     token = get_github_token()
     return do_api(
-        "POST",
+        "GET",
         f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/plan/",
         {},
         auth_token=token
