@@ -52,7 +52,11 @@ from diggercli.constants import (
     ServiceType,
 )
 from diggercli.utils.pprint import Bcolors, Halo, spin
-from diggercli.utils.misc import parse_env_config_options, read_env_config_from_file
+from diggercli.utils.misc import (
+    compute_env_vars_with_overrides,
+    parse_env_config_options, 
+    read_env_config_from_file
+)
 
 # TODO: use pkg_resources_insead of __file__ since latter will not work for egg
 
@@ -832,11 +836,10 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     if service_type == ServiceType.WEBAPP:
         build_command = settings["services"][service_key]["build_command"]
 
+        envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
         # expose env variables
-
-        for var in envVars:
-            if var["service"] is None or var["service"] == servicePk:
-                os.environ[var["name"]] = var["value"]
+        for name, value in envVarsWithOverrides.items():
+            os.environ[name] = value
 
         # run it in service context
         subprocess.run(["npm", "install", "--prefix", context], check=True)
@@ -859,10 +862,11 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 
         buildArgs = []
         if exposeVarsAtBuild:
-            for var in envVars:
-                if var["service"] is None or var["service"] == servicePk:
-                    os.environ[var["name"]] = var["value"]
-                    buildArgs = buildArgs + ["--build-arg", var["name"]]
+            envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
+
+            for name, value in envVarsWithOverrides.items():
+                os.environ[name] = value
+                buildArgs = buildArgs + ["--build-arg", name]
 
         docker_build_command = ["docker", "build", "-t", f"{project_name}-{service_name}:{tag}"] + \
                                buildArgs + \
