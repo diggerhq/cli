@@ -32,3 +32,18 @@ def parse_env_config_options(config : list):
             val = (val.lower() == "true")
         configOptions[key] = val
     return configOptions
+
+# compute the variables along with overrides
+def compute_env_vars_with_overrides(envVars: list, servicePk: int) -> dict:
+    res = {}
+    # expose env variables
+    for var in envVars:
+        if var["service"] is None:
+            res[var["name"]] = var["value"]
+
+    # Override service parameters
+    for var in envVars:
+        if var["service"] == servicePk:
+            res[var["name"]] = var["value"]
+
+    return res
