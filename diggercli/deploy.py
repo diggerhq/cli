@@ -4,13 +4,6 @@ import boto3
 from diggercli.fileio import zipdir
 
 
-def make_zip_file_bytes(path):
-    buf = os.io.BytesIO()
-    with zipfile.ZipFile(buf, 'w') as z:
-        for full_path, archive_name in files_to_zip(path=path):
-            z.write(full_path, archive_name)
-    return buf.getvalue()
-
 def deploy_lambda_function_code(
     project_name,
     env_name,
