@@ -18,6 +18,9 @@ import subprocess
 from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
+
+from diggercli.deploy import deploy_lambda_function_code
+
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -819,6 +822,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
+    service_runtime = settings["services"][service_key]["service_runtime"]
     service_path = settings["services"][service_key]["path"]
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
@@ -850,7 +854,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
             if current_cmd[0] == "npm":
                 current_cmd = current_cmd + ["--prefix", context]
             subprocess.run(current_cmd, check=True)
-    else:
+    elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
         dockerfile = settings["services"][service_key]["dockerfile"]
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
@@ -874,6 +878,10 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 
         subprocess.run(docker_build_command, check=True)
         subprocess.run(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"], check=True)
+    else:
+        Bcolors.warn("This service type does not support build phase, skipping ...")
+        sys.exit(0)
+
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
@@ -910,28 +918,30 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
 
-    if service_type == ServiceType.WEBAPP:
-        Bcolors.warn("Webapps don't support push command, only build and release!")
+
+    if service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
+        envDetails = api.get_environment_details(project_name, env_name)
+        envId = envDetails["pk"]
+        response = api.get_last_infra_deployment_info(project_name, envId)
+        infraDeploymentDetails = json.loads(response.content)
+
+        if remote:
+            os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
+
+        docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
+        region = infraDeploymentDetails["region"]
+        registry_endpoint = docker_registry.split("/")[0]
+        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+        os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
+        os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
+        proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
+        docker_auth = proc.stdout.decode("utf-8")
+        subprocess.run(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint], check=True)
+        subprocess.run(["docker", "push", f"{docker_registry}:{tag}"], check=True)
+    else:
+        Bcolors.warn("This service does not support push command, skipping ...")
         sys.exit(0)
-        
-    envDetails = api.get_environment_details(project_name, env_name)
-    envId = envDetails["pk"]
-    response = api.get_last_infra_deployment_info(project_name, envId)
-    infraDeploymentDetails = json.loads(response.content)
 
-    if remote:
-        os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
-
-    docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
-    region = infraDeploymentDetails["region"]
-    registry_endpoint = docker_registry.split("/")[0]
-    credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-    os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
-    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
-    proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
-    docker_auth = proc.stdout.decode("utf-8")
-    subprocess.run(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint], check=True)
-    subprocess.run(["docker", "push", f"{docker_registry}:{tag}"], check=True)
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
 
@@ -950,8 +960,11 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         project_name = settings["project"]["name"]
         service_name = settings["services"][service_key]["service_name"]
         service_type = settings["services"][service_key]["service_type"]
+        service_path = settings["services"][service_key]["path"]
+        service_runtime = settings["services"][service_key]["service_runtime"]
         envDetails = api.get_environment_details(project_name, env_name)
         envId = envDetails["pk"]
+        region = envDetails["region"]
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
         credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
@@ -971,7 +984,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
 
             Bcolors.okgreen("Upload succeeded!")
-        else:
+        elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
             docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
             lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
             region = infraDeploymentDetails["region"]
@@ -993,6 +1006,23 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
             print(output["msg"])
             print(f"your deployment URL: http://{lb_url}")
+        elif (service_type == ServiceType.SERVERLESS and service_runtime != "Docker"):
+            # perform deployment for lambda functions that are not using docker runtime
+            lambda_handler = settings["services"][service_key]["lambda_handler"]
+            response = deploy_lambda_function_code(
+                project_name,
+                env_name,
+                service_name,
+                region,
+                service_path,
+                lambda_handler,
+                aws_key,
+                aws_secret
+            )
+            print(f"lambda deployed successfully {response}")
+            
+        else:
+            Bcolors.warn("Service type does not support release, skipping ...")
 
         spinner.stop()
 
