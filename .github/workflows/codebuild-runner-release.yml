@@ -23,9 +23,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
         with:
             repository: 'diggerhq/codebuild-runner'
+            token: ${{ secrets.TOKEN_FOR_REPO_CLONE }}
 
       - name: initialize awscli
         uses: aws-actions/configure-aws-credentials@v1
