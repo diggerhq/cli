@@ -40,7 +40,7 @@ jobs:
             export TAG=${{needs.get-tag-version.outputs.tag_version}}
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws ecr-public get-login-password --region us-east-2 | docker login --username AWS --password-stdin 739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner
+            aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner
             docker build --build-arg TAG=$TAG -t dg -f docker/Dockerfile.ecr.publish .
             docker tag "dg:latest" "739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner:$TAG"
             docker tag "dg:latest" "739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner:latest"
