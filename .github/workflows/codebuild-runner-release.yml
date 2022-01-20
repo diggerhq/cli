@@ -1,4 +1,4 @@
-name: Package and release
+name: Codebuild release ecr
 
 on:
   workflow_run:
