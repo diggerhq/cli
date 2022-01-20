@@ -43,6 +43,4 @@ jobs:
             aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner
             docker build -t codebuild-runner .
             docker tag "codebuild-runner:latest" "739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner:$TAG"
-            docker tag "codebuild-runner:latest" "739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner:latest"
-            docker push "739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner:latest"
             docker push "739940681129.dkr.ecr.us-east-2.amazonaws.com/codebuild-runner:$TAG"
