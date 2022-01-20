@@ -1008,6 +1008,16 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             print(f"your deployment URL: http://{lb_url}")
         elif (service_type == ServiceType.SERVERLESS and service_runtime != "Docker"):
             # perform deployment for lambda functions that are not using docker runtime
+            if service_runtime == "Node.js":
+                print("Installing packages ...")
+                subprocess.run(["npm", "i", "--prefix", service_path])
+            elif service_runtime == "Python3.9":
+                print("Installing packages ...")
+                # needs more work .. we need to include python requirements folder into the zip path
+                reqs_path = os.path.join(service_path, "requirements.txt")
+                deps_path = service_path
+                subprocess.run(["pip", "install", "--target", deps_path, "-r", reqs_path])
+
             lambda_handler = settings["services"][service_key]["lambda_handler"]
             response = deploy_lambda_function_code(
                 project_name,
