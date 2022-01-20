@@ -1,4 +1,6 @@
 import os
+import io
+import time
 import zipfile
 import boto3
 from diggercli.fileio import zipdir
@@ -14,13 +16,14 @@ def deploy_lambda_function_code(
     aws_key,
     aws_secret
 ):
-    buf = os.io.BytesIO()
+    buf = io.BytesIO()
     ziph = zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED)
 
     cwd = os.getcwd()
     os.chdir(path)
     try:
         zipdir(ziph)
+        ziph.close()
     except Exception as e:
         raise e
     finally:
@@ -33,6 +36,18 @@ def deploy_lambda_function_code(
         FunctionName=functionName,
         Handler=handler
     )
+
+    # ensure the lambda status is "Successful" before proceeding
+    cnt = 1
+    while True:
+        func_details = client.get_function(
+            FunctionName=functionName
+        )
+        state = func_details["Configuration"]["LastUpdateStatus"]
+        if state != "InProgress" or cnt > 20:
+            break
+        cnt += 1
+        time.sleep(5)
 
     response = client.update_function_code(
         FunctionName=functionName,

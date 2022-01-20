@@ -51,7 +51,7 @@ def zipdir(ziph):
     lenDirPath = len(path)
     for root, dirs, files in os.walk(path):
         for file in files:
-            if root.endswith("node_modules"): continue
+            # if root.endswith("node_modules"): continue
             filePath = os.path.join(root, file)
             # the second argument ensures accurate tree structure in the zip file
             ziph.write(filePath, filePath[lenDirPath:])

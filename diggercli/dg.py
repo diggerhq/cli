@@ -822,7 +822,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
-    service_runtime = settings["services"][service_key]["service_runtime"]
+    service_runtime = settings["services"][service_key]["lambda_runtime"]
     service_path = settings["services"][service_key]["path"]
     envDetails = api.get_environment_details(project_name, env_name)
     envId = envDetails["pk"]
@@ -917,7 +917,7 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
-
+    service_runtime = settings["services"][service_key]["lambda_runtime"]
 
     if service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
         envDetails = api.get_environment_details(project_name, env_name)
@@ -961,7 +961,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         service_name = settings["services"][service_key]["service_name"]
         service_type = settings["services"][service_key]["service_type"]
         service_path = settings["services"][service_key]["path"]
-        service_runtime = settings["services"][service_key]["service_runtime"]
+        service_runtime = settings["services"][service_key]["lambda_runtime"]
         envDetails = api.get_environment_details(project_name, env_name)
         envId = envDetails["pk"]
         region = envDetails["region"]
@@ -1016,8 +1016,8 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
                 region,
                 service_path,
                 lambda_handler,
-                aws_key,
-                aws_secret
+                awsKey,
+                awsSecret
             )
             print(f"lambda deployed successfully {response}")
             
