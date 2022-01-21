@@ -1,4 +1,4 @@
-name: Codebuild release ecr
+name: Codebuild release ecr for dev
 
 on:
   push:
