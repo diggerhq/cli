@@ -29,7 +29,6 @@ jobs:
       - name: build and push to ecr
         run: |
             export TAG=$(git rev-parse --short "$GITHUB_SHA")
-            docker build -t codebuild-runner .
-            docker tag "682903345738.dkr.ecr.us-east-1.amazonaws.com/codebuild-runner:dev" "682903345738.dkr.ecr.us-east-1.amazonaws.com/codebuild-runner:$TAG"
+            docker build -t 682903345738.dkr.ecr.us-east-1.amazonaws.com/codebuild-runner:dev 682903345738.dkr.ecr.us-east-1.amazonaws.com/codebuild-runner:$TAG .
             docker push "682903345738.dkr.ecr.us-east-1.amazonaws.com/codebuild-runner:$TAG"
             docker push "682903345738.dkr.ecr.us-east-1.amazonaws.com/codebuild-runner:dev"
