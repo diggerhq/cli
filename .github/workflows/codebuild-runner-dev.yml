@@ -2,7 +2,7 @@ name: Codebuild release ecr
 
 on:
   push:
-    branches: [dev, add-dev-env]
+    branches: [dev, add-nextjs-service-type]
 
 jobs:
 
