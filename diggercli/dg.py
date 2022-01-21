@@ -837,7 +837,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     serviceDetails = api.get_service_by_name(project_name, service_name)
     servicePk = serviceDetails["pk"]
 
-    if service_type == ServiceType.WEBAPP:
+    if service_type in [ServiceType.WEBAPP, ServiceType.NEXTJS]:
         build_command = settings["services"][service_key]["build_command"]
 
         envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
@@ -854,12 +854,12 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
             if current_cmd[0] == "npm":
                 current_cmd = current_cmd + ["--prefix", context]
             subprocess.run(current_cmd, check=True)
+
     elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
         dockerfile = settings["services"][service_key]["dockerfile"]
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
         docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
-
 
         if remote:
             os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
