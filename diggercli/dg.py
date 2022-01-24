@@ -879,7 +879,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         subprocess.run(docker_build_command, check=True)
         subprocess.run(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"], check=True)
     else:
-        Bcolors.warn("This service type does not support build phase, skipping ...")
+        Bcolors.warn(f"This service type does not support build phase: {service_type}, skipping ...")
         sys.exit(0)
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
