@@ -71,4 +71,4 @@ class ServiceType:
     CONTAINER = "container"
     SERVERLESS = "serverless"
     WEBAPP = "webapp"
-    NEXTJS = "nexjs"
+    NEXTJS = "nextjs"
