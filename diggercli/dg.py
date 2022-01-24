@@ -848,6 +848,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         # run it in service context
         subprocess.run(["npm", "install", "--prefix", context], check=True)
 
+        print(f"build command to execute: {build_command}")
         # ensure that && separator works as expected
         for cmd in build_command.split("&&"):
             current_cmd = cmd.strip().split(" ")
