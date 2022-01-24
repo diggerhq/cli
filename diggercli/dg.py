@@ -968,8 +968,11 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         envDetails = api.get_environment_details(project_name, env_name)
         envId = envDetails["pk"]
         region = envDetails["region"]
-        response = api.get_last_infra_deployment_info(project_name, envId)
-        infraDeploymentDetails = json.loads(response.content)
+
+        # nextjs service doesn't have infra deployment stage
+        if service_type != ServiceType.NEXTJS:
+            response = api.get_last_infra_deployment_info(project_name, envId)
+            infraDeploymentDetails = json.loads(response.content)
         credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
