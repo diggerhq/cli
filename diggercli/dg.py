@@ -857,7 +857,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
             subprocess.run(current_cmd, check=True)
 
         subprocess.run("pwd", check=True)
-        subprocess.run("ls", check=True)
+        subprocess.run("ls -a", check=True)
 
     elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
         dockerfile = settings["services"][service_key]["dockerfile"]
