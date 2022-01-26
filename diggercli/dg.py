@@ -837,7 +837,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     serviceDetails = api.get_service_by_name(project_name, service_name)
     servicePk = serviceDetails["pk"]
 
-    if service_type == ServiceType.WEBAPP:
+    if service_type in [ServiceType.WEBAPP, ServiceType.NEXTJS]:
         build_command = settings["services"][service_key]["build_command"]
 
         envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
@@ -848,18 +848,22 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         # run it in service context
         subprocess.run(["npm", "install", "--prefix", context], check=True)
 
+        print(f"build command to execute: {build_command}")
         # ensure that && separator works as expected
         for cmd in build_command.split("&&"):
             current_cmd = cmd.strip().split(" ")
             if current_cmd[0] == "npm":
                 current_cmd = current_cmd + ["--prefix", context]
             subprocess.run(current_cmd, check=True)
+
+        subprocess.run("pwd", check=True)
+        subprocess.run("ls -a", check=True)
+
     elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
         dockerfile = settings["services"][service_key]["dockerfile"]
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
         docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
-
 
         if remote:
             os.environ["DOCKER_HOST"] = DOCKER_REMOTE_HOST
@@ -879,7 +883,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
         subprocess.run(docker_build_command, check=True)
         subprocess.run(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"], check=True)
     else:
-        Bcolors.warn("This service type does not support build phase, skipping ...")
+        Bcolors.warn(f"This service type does not support build phase: {service_type}, skipping ...")
         sys.exit(0)
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
@@ -938,8 +942,10 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
         docker_auth = proc.stdout.decode("utf-8")
         subprocess.run(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint], check=True)
         subprocess.run(["docker", "push", f"{docker_registry}:{tag}"], check=True)
+    elif service_type == ServiceType.NEXTJS:
+        print(f"ServiceType is NextJS, do nothing for now.")
     else:
-        Bcolors.warn("This service does not support push command, skipping ...")
+        Bcolors.warn(f"This service: {service_type} does not support push command, skipping ...")
         sys.exit(0)
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
@@ -965,8 +971,11 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         envDetails = api.get_environment_details(project_name, env_name)
         envId = envDetails["pk"]
         region = envDetails["region"]
-        response = api.get_last_infra_deployment_info(project_name, envId)
-        infraDeploymentDetails = json.loads(response.content)
+
+        # nextjs service doesn't have infra deployment stage
+        if service_type != ServiceType.NEXTJS:
+            response = api.get_last_infra_deployment_info(project_name, envId)
+            infraDeploymentDetails = json.loads(response.content)
         credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
@@ -984,6 +993,8 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
 
             Bcolors.okgreen("Upload succeeded!")
+        elif service_type == ServiceType.NEXTJS:
+            print(f"ServiceType is NextJS, do nothing for now.")
         elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
             docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
             lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
@@ -1006,7 +1017,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
             print(output["msg"])
             print(f"your deployment URL: http://{lb_url}")
-        elif (service_type == ServiceType.SERVERLESS and service_runtime != "Docker"):
+        elif service_type == ServiceType.SERVERLESS and service_runtime != "Docker":
             # perform deployment for lambda functions that are not using docker runtime
             if service_runtime == "Node.js":
                 print("Installing packages ...")
@@ -1032,7 +1043,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             print(f"lambda deployed successfully {response}")
             
         else:
-            Bcolors.warn("Service type does not support release, skipping ...")
+            Bcolors.warn(f"Service type: {service_type} does not support release command, skipping ...")
 
         spinner.stop()
 

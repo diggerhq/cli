@@ -1,7 +1,8 @@
-import sys 
+import sys
 import os
 from pathlib import Path
 from environs import Env
+
 
 def get_base_path():
     # for pyinstaller binaries we use sys.MEIPASS otherwise fetch from __file__
@@ -65,8 +66,9 @@ AWS_REGIONS = [
     "us-gov-west-1",
 ]
 
+
 class ServiceType:
-    CONTAINER  = "container"
+    CONTAINER = "container"
     SERVERLESS = "serverless"
     WEBAPP = "webapp"
-    
+    NEXTJS = "nextjs"
