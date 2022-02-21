@@ -1,3 +1,4 @@
+import json
 import os
 import io
 import time
@@ -15,7 +16,7 @@ def deploy_lambda_function_code(
     handler,
     aws_key,
     aws_secret,
-    envVars={}
+    env_vars={}
 ):
     buf = io.BytesIO()
     ziph = zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED)
@@ -30,18 +31,18 @@ def deploy_lambda_function_code(
     finally:
         os.chdir(cwd)
 
-    functionName=f"{project_name}-{env_name}-{service_name}"
-    response = update_handler_and_deploy_lambda(buf.getvalue(), functionName, handler, aws_key, aws_secret, region, envVars=envVars)
+    function_name=f"{project_name}-{env_name}-{service_name}"
+    response = update_handler_and_deploy_lambda(buf.getvalue(), function_name, handler, aws_key, aws_secret, region, env_vars=env_vars)
     return response
 
 
-def update_handler_and_deploy_lambda(zip_contents, functionName, handler, aws_key, aws_secret, region, envVars):
+def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_key, aws_secret, region, env_vars):
     client = boto3.client("lambda", aws_access_key_id=aws_key, aws_secret_access_key=aws_secret, region_name=region)
 
     client.update_function_configuration(
-        FunctionName=functionName,
+        FunctionName=function_name,
         Environment={
-            "Variables": envVars
+            "Variables": env_vars
         },
         Handler=handler
     )
@@ -50,7 +51,7 @@ def update_handler_and_deploy_lambda(zip_contents, functionName, handler, aws_ke
     cnt = 1
     while True:
         func_details = client.get_function(
-            FunctionName=functionName
+            FunctionName=function_name
         )
         state = func_details["Configuration"]["LastUpdateStatus"]
         if state != "InProgress" or cnt > 20:
@@ -59,8 +60,8 @@ def update_handler_and_deploy_lambda(zip_contents, functionName, handler, aws_ke
         time.sleep(5)
 
     response = client.update_function_code(
-        FunctionName=functionName,
-        ZipFile=buf.getvalue(),
+        FunctionName=function_name,
+        ZipFile=zip_contents,
         Publish=True,
         DryRun=False,
     )
@@ -71,9 +72,9 @@ def deploy_nextjs_code(
     nextjs_deployment_name,
     nextjs_build_dir,
     region,
-    awsKey,
-    awsSecret,
-    envVars={}
+    aws_key,
+    aws_secret,
+    env_vars={}
 ):
     config_file = os.path.join(nextjs_build_dir, "config.json")
     f = open(config_file, "r")
@@ -86,5 +87,5 @@ def deploy_nextjs_code(
     lambda_zip_path = os.path.join(nextjs_build_dir, first_value["filename"])
     lambda_function_name = f"{nextjs_deployment_name}_{lambda_key}"
     zip_contents = open(lambda_zip_path, "rb").read()
-    response = update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, awsKey, awsSecret, region, envVars=envVars)
+    response = update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, aws_key, aws_secret, region, env_vars=env_vars)
     return response

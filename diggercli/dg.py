@@ -1045,7 +1045,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
                 lambda_handler,
                 awsKey,
                 awsSecret,
-                envVars=envVarsWithOverrides
+                env_vars=envVarsWithOverrides
             )
             print(f"lambda deployed successfully {response}")
             
