@@ -822,6 +822,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
+    webapp_package_manager = settings["services"][service_key]["webapp_package_manager"]
     service_runtime = settings["services"][service_key]["lambda_runtime"]
     service_path = settings["services"][service_key]["path"]
     envDetails = api.get_environment_details(project_name, env_name)
@@ -846,7 +847,10 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
             os.environ[name] = value
 
         # run it in service context
-        subprocess.run(["npm", "install", "--prefix", context], check=True)
+        if webapp_package_manager == "yarn":
+            subprocess.run(["yarn", "install", "--prefix", context], check=True)
+        else:
+            subprocess.run(["npm", "install", "--prefix", context], check=True)
 
         print(f"build command to execute: {build_command}")
         # ensure that && separator works as expected
