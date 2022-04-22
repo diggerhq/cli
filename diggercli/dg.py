@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code
+from diggercli.deploy import deploy_lambda_function_code, upload_dir_to_s3
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -984,11 +984,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
         spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
         spinner.start()
-        if service_type == ServiceType.WEBAPP:
-            build_directory = settings["services"][service_key]["build_directory"]
-            bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
-            upload_dir_to_s3(awsKey, awsSecret, bucket_name,  build_directory)
-        elif service_type == ServiceType.NEXTJS:
+        if service_type in [ServiceType.WEBAPP, ServiceType.NEXTJS]:
             build_directory = settings["services"][service_key]["build_directory"]
             bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
             upload_dir_to_s3(awsKey, awsSecret, bucket_name,  build_directory)
