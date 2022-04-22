@@ -985,17 +985,13 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
         spinner.start()
         if service_type == ServiceType.WEBAPP:
-            os.environ["AWS_ACCESS_KEY_ID"] = awsKey
-            os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
             build_directory = settings["services"][service_key]["build_directory"]
-            # TODO: find better way to extract bucket name of webapp
             bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
-
-            subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
-
-            Bcolors.okgreen("Upload succeeded!")
+            upload_dir_to_s3(awsKey, awsSecret, bucket_name,  build_directory)
         elif service_type == ServiceType.NEXTJS:
-            print(f"ServiceType is NextJS, do nothing for now.")
+            build_directory = settings["services"][service_key]["build_directory"]
+            bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
+            upload_dir_to_s3(awsKey, awsSecret, bucket_name,  build_directory)
         elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
             docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
             lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
