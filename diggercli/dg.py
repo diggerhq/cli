@@ -995,6 +995,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             envVars = json.loads(envVars.content)["results"]
             envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
             nextjs_deployment_name = infraDeploymentDetails["terraform_outputs"][f"nextjs_deployment_name"]["value"]
+            print("deploying nextjs code ...")
             deploy_nextjs_code(
                 nextjs_deployment_name,
                 build_directory,
