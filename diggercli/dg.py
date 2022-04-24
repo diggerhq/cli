@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code
+from diggercli.deploy import deploy_lambda_function_code, upload_dir_to_s3, deploy_nextjs_code
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -974,9 +974,8 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         region = envDetails["region"]
 
         # nextjs service doesn't have infra deployment stage
-        if service_type != ServiceType.NEXTJS:
-            response = api.get_last_infra_deployment_info(project_name, envId)
-            infraDeploymentDetails = json.loads(response.content)
+        response = api.get_last_infra_deployment_info(project_name, envId)
+        infraDeploymentDetails = json.loads(response.content)
         credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
@@ -985,17 +984,26 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
         spinner.start()
         if service_type == ServiceType.WEBAPP:
-            os.environ["AWS_ACCESS_KEY_ID"] = awsKey
-            os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
             build_directory = settings["services"][service_key]["build_directory"]
-            # TODO: find better way to extract bucket name of webapp
             bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
-
-            subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
-
-            Bcolors.okgreen("Upload succeeded!")
+            upload_dir_to_s3(awsKey, awsSecret, bucket_name,  build_directory)
         elif service_type == ServiceType.NEXTJS:
-            print(f"ServiceType is NextJS, do nothing for now.")
+            serviceDetails = api.get_service_by_name(project_name, service_name)
+            servicePk = serviceDetails["pk"]
+            build_directory = settings["services"][service_key]["build_directory"]
+            envVars = api.environment_vars_list(project_name, envId)
+            envVars = json.loads(envVars.content)["results"]
+            envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
+            nextjs_deployment_name = infraDeploymentDetails["terraform_outputs"][f"nextjs_deployment_name"]["value"]
+            print("deploying nextjs code ...")
+            deploy_nextjs_code(
+                nextjs_deployment_name,
+                build_directory,
+                region,
+                awsKey,
+                awsSecret,
+                env_vars=envVarsWithOverrides
+            )
         elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
             docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
             lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]

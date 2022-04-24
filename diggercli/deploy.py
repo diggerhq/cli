@@ -1,10 +1,19 @@
 import json
 import os
 import io
+import subprocess
 import time
 import zipfile
 import boto3
 from diggercli.fileio import zipdir
+from diggercli.utils.pprint import Bcolors
+
+
+def upload_dir_to_s3(awsKey, awsSecret, bucket_name, directory):
+    os.environ["AWS_ACCESS_KEY_ID"] = awsKey
+    os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
+    subprocess.run(["aws", "s3", "sync", f"{directory}", f"s3://{bucket_name}"], check=True)
+    Bcolors.okgreen("Upload succeeded!")
 
 
 def deploy_lambda_function_code(
