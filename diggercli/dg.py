@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code, upload_dir_to_s3
+from diggercli.deploy import deploy_lambda_function_code, upload_dir_to_s3, deploy_nextjs_code
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -983,10 +983,26 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
         spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
         spinner.start()
-        if service_type in [ServiceType.WEBAPP, ServiceType.NEXTJS]:
+        if service_type == ServiceType.WEBAPP:
             build_directory = settings["services"][service_key]["build_directory"]
             bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
             upload_dir_to_s3(awsKey, awsSecret, bucket_name,  build_directory)
+        elif service_type == ServiceType.NEXTJS:
+            serviceDetails = api.get_service_by_name(project_name, service_name)
+            servicePk = serviceDetails["pk"]
+            build_directory = settings["services"][service_key]["build_directory"]
+            envVars = api.environment_vars_list(project_name, envId)
+            envVars = json.loads(envVars.content)["results"]
+            envVarsWithOverrides = compute_env_vars_with_overrides(envVars, servicePk)
+            nextjs_deployment_name = infraDeploymentDetails["terraform_outputs"][f"nextjs_deployment_name"]["value"]
+            deploy_nextjs_code(
+                nextjs_deployment_name,
+                build_directory,
+                region,
+                awsKey,
+                awsSecret,
+                env_vars=envVarsWithOverrides
+            )
         elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
             docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
             lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
