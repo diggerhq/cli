@@ -95,5 +95,5 @@ def deploy_nextjs_code(
         lambda_zip_path = os.path.join(nextjs_build_dir, value["filename"])
         lambda_function_name = f"{nextjs_deployment_name}_{lambda_key}"
         zip_contents = open(lambda_zip_path, "rb").read()
-        response = update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, aws_key, aws_secret, region, env_vars=env_vars)
-        return response
+        update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, aws_key, aws_secret, region, env_vars=env_vars)
+        print("> updated {lambda_function_name}")
