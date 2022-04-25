@@ -89,12 +89,11 @@ def deploy_nextjs_code(
     f = open(config_file, "r")
     config = json.loads(f.read())
 
-    first_key = next(iter(config["lambdas"].keys()))
-    first_value = next(iter(config["lambdas"].values()))
-    lambda_key = first_key
-    lambda_handler = first_value["handler"]
-    lambda_zip_path = os.path.join(nextjs_build_dir, first_value["filename"])
-    lambda_function_name = f"{nextjs_deployment_name}_{lambda_key}"
-    zip_contents = open(lambda_zip_path, "rb").read()
-    response = update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, aws_key, aws_secret, region, env_vars=env_vars)
-    return response
+    for key,value in config["lambdas"].items():
+        lambda_key = key
+        lambda_handler = value["handler"]
+        lambda_zip_path = os.path.join(nextjs_build_dir, value["filename"])
+        lambda_function_name = f"{nextjs_deployment_name}_{lambda_key}"
+        zip_contents = open(lambda_zip_path, "rb").read()
+        response = update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, aws_key, aws_secret, region, env_vars=env_vars)
+        return response
