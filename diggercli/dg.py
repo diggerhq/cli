@@ -819,8 +819,6 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
     else:
         service_key = service
 
-    print(f'settings: {settings}')
-
     project_name = settings["project"]["name"]
     service_name = settings["services"][service_key]["service_name"]
     service_type = settings["services"][service_key]["service_type"]
