@@ -1232,8 +1232,8 @@ def project_generate_yml(name=None):
 
     update_existing_yaml = False
     if os.path.exists("digger.yml"):
-        Bcolors.warn("digger.yml found, please remove before running command")
-        sys.exit(0)
+        Bcolors.fail("digger.yml found, please remove before running command")
+        sys.exit(1)
 
     if name is None:
         defaultProjectName = os.path.basename(os.getcwd())
