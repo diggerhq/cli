@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code
+from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -860,6 +860,9 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
                 current_cmd = current_cmd + ["--prefix", context]
             subprocess.run(current_cmd, check=True)
 
+        subprocess.run(["pwd"], check=True)
+        subprocess.run(["ls", "-a"], check=True)
+
     elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
         dockerfile = settings["services"][service_key]["dockerfile"]
         response = api.get_last_infra_deployment_info(project_name, envId)
@@ -973,10 +976,8 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         envId = envDetails["pk"]
         region = envDetails["region"]
 
-        # nextjs service doesn't have infra deployment stage
-        if service_type != ServiceType.NEXTJS:
-            response = api.get_last_infra_deployment_info(project_name, envId)
-            infraDeploymentDetails = json.loads(response.content)
+        response = api.get_last_infra_deployment_info(project_name, envId)
+        infraDeploymentDetails = json.loads(response.content)
         credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
         awsKey = credentials["aws_key"]
         awsSecret = credentials["aws_secret"]
@@ -994,8 +995,6 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             subprocess.run(["aws", "s3", "sync", f"{build_directory}",  f"s3://{bucket_name}"], check=True)
 
             Bcolors.okgreen("Upload succeeded!")
-        elif service_type == ServiceType.NEXTJS:
-            print(f"ServiceType is NextJS, do nothing for now.")
         elif service_type == ServiceType.CONTAINER or (service_type == ServiceType.SERVERLESS and service_runtime == "Docker"):
             docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
             lb_url = infraDeploymentDetails["outputs"]["services"][service_name]["lb_url"]
@@ -1049,7 +1048,19 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
                 env_vars=envVarsWithOverrides
             )
             print(f"lambda deployed successfully {response}")
-            
+        elif service_type == ServiceType.NEXTJS:
+            nextjs_deployment_name = infraDeploymentDetails["terraform_outputs"]["nextjs_deployment_name"]["value"]
+            nextjs_build_dir = settings["services"][service_key]["build_directory"]
+
+            response = deploy_nextjs_code(
+                nextjs_deployment_name,
+                nextjs_build_dir,
+                region,
+                awsKey,
+                awsSecret,
+            )
+            print(f"nextjs app deployed successfully {response}")
+
         else:
             Bcolors.warn(f"Service type: {service_type} does not support release command, skipping ...")
 
