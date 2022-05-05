@@ -31,6 +31,7 @@ def deploy_lambda_function_code(
     finally:
         os.chdir(cwd)
 
+
     function_name=f"{project_name}-{env_name}-{service_name}"
     response = update_handler_and_deploy_lambda(buf.getvalue(), function_name, handler, aws_key, aws_secret, region, env_vars=env_vars)
     return response
@@ -39,6 +40,13 @@ def deploy_lambda_function_code(
 def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_key, aws_secret, region, env_vars):
     client = boto3.client("lambda", aws_access_key_id=aws_key, aws_secret_access_key=aws_secret, region_name=region)
 
+
+    response = update_handler_and_deploy_lambda(buf.getvalue(), functionName, handler, aws_key, aws_secret, region)
+    return response
+
+
+def update_handler_and_deploy_lambda(zip_contents, functionName, handler, aws_key, aws_secret, region):
+    client = boto3.client("lambda", aws_access_key_id=aws_key, aws_secret_access_key=aws_secret, region_name=region)
     client.update_function_configuration(
         FunctionName=function_name,
         Environment={
@@ -46,7 +54,6 @@ def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_k
         },
         Handler=handler
     )
-
     # ensure the lambda status is "Successful" before proceeding
     cnt = 1
     while True:
@@ -58,7 +65,6 @@ def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_k
             break
         cnt += 1
         time.sleep(5)
-
     response = client.update_function_code(
         FunctionName=function_name,
         ZipFile=zip_contents,
@@ -89,3 +95,4 @@ def deploy_nextjs_code(
     zip_contents = open(lambda_zip_path, "rb").read()
     response = update_handler_and_deploy_lambda(zip_contents, lambda_function_name, lambda_handler, aws_key, aws_secret, region, env_vars=env_vars)
     return response
+
