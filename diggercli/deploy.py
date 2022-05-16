@@ -37,7 +37,7 @@ def deploy_lambda_function_code(
     return response
 
 
-def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_key, aws_secret, region, env_vars):
+def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_key, aws_secret, region, env_vars={}):
     client = boto3.client("lambda", aws_access_key_id=aws_key, aws_secret_access_key=aws_secret, region_name=region)
 
 
