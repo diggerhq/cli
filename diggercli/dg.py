@@ -1022,7 +1022,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             if service_runtime == "Node.js":
                 print("Installing packages ...")
                 # we pass the `--only-production` flag to avoid installing dev dependencies
-                subprocess.run(["npm", "i", "--prefix", "--only=production", service_path])
+                subprocess.run(["npm", "i", "--only=production", "--prefix", service_path])
             elif service_runtime == "Python3.9":
                 print("Installing packages ...")
                 # needs more work .. we need to include python requirements folder into the zip path
