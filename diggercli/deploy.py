@@ -1,10 +1,20 @@
 import json
 import os
 import io
+import subprocess
 import time
 import zipfile
 import boto3
 from diggercli.fileio import zipdir
+
+
+
+def exec_build_command(build_command, service_path):
+    for cmd in build_command.split("&&"):
+        current_cmd = cmd.strip().split(" ")
+        if current_cmd[0] == "npm":
+            current_cmd = current_cmd + ["--prefix", service_path]
+        subprocess.run(current_cmd, check=True)
 
 
 def deploy_lambda_function_code(

@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code
+from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code, exec_build_command
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -854,11 +854,7 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 
         print(f"build command to execute: {build_command}")
         # ensure that && separator works as expected
-        for cmd in build_command.split("&&"):
-            current_cmd = cmd.strip().split(" ")
-            if current_cmd[0] == "npm":
-                current_cmd = current_cmd + ["--prefix", context]
-            subprocess.run(current_cmd, check=True)
+        exec_build_command(build_command, context)
 
         subprocess.run(["pwd"], check=True)
         subprocess.run(["ls", "-a"], check=True)
@@ -886,6 +882,12 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 
         subprocess.run(docker_build_command, check=True)
         subprocess.run(["docker", "tag", f"{project_name}-{service_name}:{tag}", f"{docker_registry}:{tag}"], check=True)
+
+    elif service_type == ServiceType.SERVERLESS and service_runtime != "Docker":
+
+        build_command = settings["services"][service_key]["build_command"]
+        exec_build_command(build_command, context)
+
     else:
         Bcolors.warn(f"This service type does not support build phase: {service_type}, skipping ...")
         sys.exit(0)
@@ -1019,16 +1021,16 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
             print(f"your deployment URL: http://{lb_url}")
         elif service_type == ServiceType.SERVERLESS and service_runtime != "Docker":
             # perform deployment for lambda functions that are not using docker runtime
-            if service_runtime == "Node.js":
-                print("Installing packages ...")
-                # we pass the `--only-production` flag to avoid installing dev dependencies
-                subprocess.run(["npm", "i", "--only=production", "--prefix", service_path])
-            elif service_runtime == "Python3.9":
-                print("Installing packages ...")
-                # needs more work .. we need to include python requirements folder into the zip path
-                reqs_path = os.path.join(service_path, "requirements.txt")
-                deps_path = service_path
-                subprocess.run(["pip", "install", "--target", deps_path, "-r", reqs_path])
+            # if service_runtime == "Node.js":
+            #     print("Installing packages ...")
+            #     # we pass the `--only-production` flag to avoid installing dev dependencies
+            #     subprocess.run(["npm", "i", "--only=production", "--prefix", service_path])
+            # elif service_runtime == "Python3.9":
+            #     print("Installing packages ...")
+            #     # needs more work .. we need to include python requirements folder into the zip path
+            #     reqs_path = os.path.join(service_path, "requirements.txt")
+            #     deps_path = service_path
+            #     subprocess.run(["pip", "install", "--target", deps_path, "-r", reqs_path])
 
             serviceDetails = api.get_service_by_name(project_name, service_name)
             servicePk = serviceDetails["pk"]
