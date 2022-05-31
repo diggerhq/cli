@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code
+from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code, assume_role
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -78,7 +78,6 @@ def update_digger_yaml(d):
     f = open(digger_yaml(), "w")
     ydump(d, f)
     PROJECT = d
-    return PROJECT
 
 def find_dockerfile(path):
     files =  os.listdir(path)
@@ -942,8 +941,10 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, aws_assum
         region = infraDeploymentDetails["region"]
         registry_endpoint = docker_registry.split("/")[0]
         if aws_assume_role_arn:
-            subprocess.run(["aws", "assume-role", "--role-arn", aws_assume_role_arn, "--role-session-name", "DIGGER",
-                            "--external-id", aws_assume_external_id])
+            (access_key, secret_key, session_token) = assume_role(aws_assume_role_arn, aws_assume_external_id)
+            os.environ["AWS_ACCESS_KEY_ID"] = access_key
+            os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+            os.environ["AWS_SESSION_TOKEN"] = session_token
         else:
             credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
             os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
@@ -995,7 +996,10 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         spinner.start()
         if service_type == ServiceType.WEBAPP:
             if aws_assume_role_arn:
-                subprocess.run(["aws", "assume-role", "--role-arn", aws_assume_role_arn, "--role-session-name", "DIGGER", "--external-id", aws_assume_external_id])
+                (access_key, secret_key, session_token) = assume_role(aws_assume_role_arn, aws_assume_external_id)
+                os.environ["AWS_ACCESS_KEY_ID"] = access_key
+                os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+                os.environ["AWS_SESSION_TOKEN"] = session_token
             else:
                 os.environ["AWS_ACCESS_KEY_ID"] = awsKey
                 os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
