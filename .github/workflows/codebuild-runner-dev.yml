@@ -2,7 +2,7 @@ name: Codebuild release ecr for dev
 
 on:
   push:
-    branches: [dev**]
+    branches: [dev**, feat/assume-role]
 
 jobs:
 
