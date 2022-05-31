@@ -16,6 +16,8 @@ def deploy_lambda_function_code(
     handler,
     aws_key,
     aws_secret,
+    aws_assume_role_arn,
+    aws_assume_role_external_id,
     env_vars={}
 ):
     buf = io.BytesIO()
@@ -33,12 +35,27 @@ def deploy_lambda_function_code(
 
 
     function_name=f"{project_name}-{env_name}-{service_name}"
-    response = update_handler_and_deploy_lambda(buf.getvalue(), function_name, handler, aws_key, aws_secret, region, env_vars=env_vars)
+    response = update_handler_and_deploy_lambda(buf.getvalue(), function_name, handler, aws_key, aws_secret, aws_assume_role_arn, aws_assume_role_external_id,region, env_vars=env_vars)
     return response
 
 
-def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_key, aws_secret, region, env_vars={}):
-    client = boto3.client("lambda", aws_access_key_id=aws_key, aws_secret_access_key=aws_secret, region_name=region)
+def update_handler_and_deploy_lambda(zip_contents, function_name, handler, aws_key, aws_secret, aws_assume_role_arn, aws_assume_role_external_id, region,
+                                     env_vars=None):
+    if env_vars is None:
+        env_vars = {}
+    if aws_assume_role_arn:
+        sts_client = boto3.client("sts")
+        assumed_role_object = sts_client.assume_role(RoleArn=aws_assume_role_arn, RoleSessionName="Digger", ExternalId=aws_assume_role_external_id)
+        credentials = assumed_role_object['Credentials']
+
+        client = boto3.client("lambda",
+                              aws_access_key_id=credentials['AccessKeyId'],
+                              aws_secret_access_key=credentials['SecretAccessKey'],
+                              aws_session_token=credentials['SessionToken'],
+                              region_name=region)
+    else:
+        client = boto3.client("lambda", aws_access_key_id=aws_key, aws_secret_access_key=aws_secret, region_name=region)
+
     client.update_function_configuration(
         FunctionName=function_name,
         Environment={
