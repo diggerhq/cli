@@ -987,22 +987,26 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-        awsKey = credentials["aws_key"]
-        awsSecret = credentials["aws_secret"]
+
+        awsKey, awsSecret = None, None
+        if aws_assume_role_arn:
+            (access_key, secret_key, session_token) = assume_role(aws_assume_role_arn, aws_assume_external_id)
+            os.environ["AWS_ACCESS_KEY_ID"] = access_key
+            os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+            os.environ["AWS_SESSION_TOKEN"] = session_token
+        else:
+            credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret,
+                                             prompt=prompt)
+            awsKey = credentials["aws_key"]
+            awsSecret = credentials["aws_secret"]
+            os.environ["AWS_ACCESS_KEY_ID"] = awsKey
+            os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
+
         envVars = {} #get_env_vars(env_name, service_key)
 
         spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
         spinner.start()
         if service_type == ServiceType.WEBAPP:
-            if aws_assume_role_arn:
-                (access_key, secret_key, session_token) = assume_role(aws_assume_role_arn, aws_assume_external_id)
-                os.environ["AWS_ACCESS_KEY_ID"] = access_key
-                os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
-                os.environ["AWS_SESSION_TOKEN"] = session_token
-            else:
-                os.environ["AWS_ACCESS_KEY_ID"] = awsKey
-                os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
             build_directory = settings["services"][service_key]["build_directory"]
             # TODO: find better way to extract bucket name of webapp
             bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
