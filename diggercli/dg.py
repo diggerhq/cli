@@ -19,7 +19,7 @@ from jinja2 import Template
 import yaml
 from oyaml import load as yload, dump as ydump
 
-from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code, exec_build_command
+from diggercli.deploy import deploy_lambda_function_code, deploy_nextjs_code, assume_role, exec_build_command
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -72,7 +72,6 @@ def digger_yaml():
 
 def get_project_settings():
     return yload(open(digger_yaml()), Loader=Loader)
-    return PROJECT
 
 def update_digger_yaml(d):
     global PROJECT
@@ -912,10 +911,12 @@ def env_build(env_name, service, remote, context=None, tag="latest"):
 @click.option('--service', default=None)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
+@click.option("--aws-assume-role-arn", required=False)
+@click.option("--aws-assume-external-id", required=False)
 @click.option('--remote/--no-remote', default=False)
 @click.option('--tag', default="latest")
 @click.option('--prompt/--no-prompt', default=False)
-def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="latest", prompt=False):
+def env_push(env_name, service, remote, aws_key=None, aws_secret=None, aws_assume_role_arn=None, aws_assume_external_id=None, tag="latest", prompt=False):
     action = "push"
     settings = get_project_settings()
     report_async({"command": f"dg env {action}"}, settings=settings, status="start")
@@ -953,9 +954,15 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
         docker_registry = infraDeploymentDetails["outputs"]["services"][service_name]["docker_registry"]
         region = infraDeploymentDetails["region"]
         registry_endpoint = docker_registry.split("/")[0]
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-        os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
-        os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
+        if aws_assume_role_arn:
+            (access_key, secret_key, session_token) = assume_role(aws_assume_role_arn, aws_assume_external_id)
+            os.environ["AWS_ACCESS_KEY_ID"] = access_key
+            os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+            os.environ["AWS_SESSION_TOKEN"] = session_token
+        else:
+            credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
+            os.environ["AWS_ACCESS_KEY_ID"] = credentials["aws_key"]
+            os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["aws_secret"]
         proc = subprocess.run(["aws", "ecr", "get-login-password", "--region", region, ], capture_output=True)
         docker_auth = proc.stdout.decode("utf-8")
         subprocess.run(["docker", "login", "--username", "AWS", "--password", docker_auth, registry_endpoint], check=True)
@@ -975,9 +982,11 @@ def env_push(env_name, service, remote, aws_key=None, aws_secret=None, tag="late
 @click.option('--all-services/--not-all-services', default=False)
 @click.option("--aws-key", required=False)
 @click.option("--aws-secret", required=False)
+@click.option("--aws-assume-role-arn", required=False)
+@click.option("--aws-assume-external-id", required=False)
 @click.option('--prompt/--no-prompt', default=False)
 @click.option('--tag', default="latest")
-def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, all_services=False, prompt=False):
+def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, aws_assume_role_arn=None, aws_assume_external_id=None, all_services=False, prompt=False):
 
 
     def perform_release(settings, env_name, service_key):
@@ -992,16 +1001,26 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
         response = api.get_last_infra_deployment_info(project_name, envId)
         infraDeploymentDetails = json.loads(response.content)
-        credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret, prompt=prompt)
-        awsKey = credentials["aws_key"]
-        awsSecret = credentials["aws_secret"]
+
+        awsKey, awsSecret = None, None
+        if aws_assume_role_arn:
+            (access_key, secret_key, session_token) = assume_role(aws_assume_role_arn, aws_assume_external_id)
+            os.environ["AWS_ACCESS_KEY_ID"] = access_key
+            os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+            os.environ["AWS_SESSION_TOKEN"] = session_token
+        else:
+            credentials = retreive_aws_creds(project_name, env_name, aws_key=aws_key, aws_secret=aws_secret,
+                                             prompt=prompt)
+            awsKey = credentials["aws_key"]
+            awsSecret = credentials["aws_secret"]
+            os.environ["AWS_ACCESS_KEY_ID"] = awsKey
+            os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
+
         envVars = {} #get_env_vars(env_name, service_key)
 
         spinner = Halo(text=f"deploying {service_name}...", spinner="dots")
         spinner.start()
         if service_type == ServiceType.WEBAPP:
-            os.environ["AWS_ACCESS_KEY_ID"] = awsKey
-            os.environ["AWS_SECRET_ACCESS_KEY"] = awsSecret
             build_directory = settings["services"][service_key]["build_directory"]
             # TODO: find better way to extract bucket name of webapp
             bucket_name = infraDeploymentDetails["terraform_outputs"][f"{service_name}_bucket_main"]["value"]
@@ -1024,6 +1043,8 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
                 "tag": tag,
                 "aws_key": awsKey,
                 "aws_secret": awsSecret,
+                "aws_assume_role_arn": aws_assume_role_arn,
+                "aws_assume_external_id": aws_assume_external_id,
                 "env_vars": envVars
             })
 
@@ -1049,6 +1070,8 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
                 lambda_handler,
                 awsKey,
                 awsSecret,
+                aws_assume_role_arn,
+                aws_assume_external_id,
                 env_vars=envVarsWithOverrides
             )
             print(f"lambda deployed successfully {response}")

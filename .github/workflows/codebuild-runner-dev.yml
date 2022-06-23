@@ -2,7 +2,7 @@ name: Codebuild release ecr for dev
 
 on:
   push:
-    branches: [dev, add-nextjs-service-type]
+    branches: [dev**, feat/assume-role]
 
 jobs:
 
