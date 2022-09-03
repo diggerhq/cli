@@ -292,6 +292,15 @@ def get_infra_deployment_info(projectName, deploymentId):
         auth_token=token
     )
 
+def get_deployment_logs(projectName, deploymentId, limit=5000, nextToken=None):
+    token = get_github_token()
+    return do_api(
+        "GET",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/deployments/{deploymentId}/logs?limit={limit}" + (f"&nextToken={nextToken}" if nextToken else ""),
+        {},
+        auth_token=token
+    )
+
 def stream_deployment_logs(projectName, deploymentId):
     token = get_github_token()
     return do_api(
@@ -301,6 +310,17 @@ def stream_deployment_logs(projectName, deploymentId):
         stream=True,
         auth_token=token
     )
+
+
+def perform_software_build(projectName, environmentId, serviceId):
+    token = get_github_token()
+    return do_api(
+        "POST",
+        f"{BACKEND_ENDPOINT}/api/projects/{projectName}/environments/{environmentId}/services/{serviceId}/deploy",
+        {},
+        auth_token=token
+    )
+    
 
 def get_infra_destroy_job_info(projectName, deploymentId):
     token = get_github_token()

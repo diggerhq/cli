@@ -1118,6 +1118,76 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
+@env.command(name="software_deploy")
+@click.argument("env_name", nargs=1, required=True)
+@click.option('--service', default=None)
+@click.option('--prompt/--no-prompt', default=False)
+def env_software_build(env_name, service, prompt=False):
+    settings = get_project_settings()
+    if service is None:        
+        questions = [
+            {
+                'type': 'list',
+                'name': 'service_name',
+                'message': 'Select Service',
+                'choices': settings["services"].keys(),
+            },
+        ]
+
+        answers = pyprompt(questions)
+        service_key = answers["service_name"]
+    else:
+        service_key = service
+
+    
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    environmentId = envDetails["pk"]
+    serviceDetails = api.get_service_by_name(projectName, service_key)
+    serviceId = serviceDetails["pk"]
+
+    response = api.perform_software_build(projectName, environmentId, serviceId)
+    print(response.content)
+    data = json.loads(response.content)
+    deploymentId = data["job_id"]
+    # deploymentId = 13691
+
+    # streaming logs until deployment is completed
+    nextToken = None
+    print("Streaming logs ...")
+    while True:
+        details_response = api.get_infra_deployment_info(projectName, deploymentId)
+        details_data = json.loads(details_response.content)
+        status = details_data["status"]
+
+        logs_response = api.get_deployment_logs(projectName, deploymentId, limit=5000, nextToken=nextToken)
+        logs_data = json.loads(logs_response.content)
+        for log_record in logs_data["events"]:
+            sys.stdout.write(log_record["message"])
+
+        nextToken = logs_data.get("nextToken", None)
+
+        if status == "LIVE" or status == "COMPLETED":
+            break
+
+        time.sleep(1)
+
+    print("waiting for deployment to be live ...")
+    while True:
+        print("... still waiting for deployment to be live ...")
+        details_response = api.get_infra_deployment_info(projectName, deploymentId)
+        details_data = json.loads(details_response.content)
+        status = details_data["status"]
+
+
+        if status == "LIVE":
+            break
+
+        time.sleep(3)
+    
+    print("** SUCCESS! Your service is now live :) **")
+
+
 
 @env.command(name="destroy")
 @click.argument("env_name", nargs=1, required=True)
