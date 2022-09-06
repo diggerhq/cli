@@ -1,10 +1,10 @@
 
 
-## Installation
+## Installation (development)
 - add an entry in your /etc/hosts to point digger.local -> 127.0.0.1
 - create virtualenv with python version > 3.7
 - `cp env/.env.example env/.env`
-- update endpoint in env/.env file to `http://18.222.22.175:8000`
+- update endpoint in env/.env file to `https://digger.local:8000`
 - pip install -r requirements.txt
 - pip install --editable . 
 - now test with `dg` -- you should see a help screen
