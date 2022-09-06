@@ -54,7 +54,7 @@ from diggercli.constants import (
     AWS_REGIONS,
     ServiceType,
 )
-from diggercli.utils.pprint import Bcolors, Halo, spin
+from diggercli.utils.pprint import Bcolors, Halo, spin, SpinnerSegment
 from diggercli.utils.misc import (
     compute_env_vars_with_overrides,
     parse_env_config_options, 
@@ -1117,6 +1117,84 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
         perform_release(settings, env_name, service_key)
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
+
+@env.command(name="software_deploy")
+@click.argument("env_name", nargs=1, required=True)
+@click.option('--service', default=None)
+@click.option('--prompt/--no-prompt', default=False)
+def env_service_deploy(env_name, service, prompt=False):
+    settings = get_project_settings()
+    if service is None:        
+        questions = [
+            {
+                'type': 'list',
+                'name': 'service_name',
+                'message': 'Select Service',
+                'choices': settings["services"].keys(),
+            },
+        ]
+
+        answers = pyprompt(questions)
+        service_key = answers["service_name"]
+    else:
+        service_key = service
+
+    
+    projectName = settings["project"]["name"]
+    envDetails = api.get_environment_details(projectName, env_name)
+    environmentId = envDetails["pk"]
+    serviceDetails = api.get_service_by_name(projectName, service_key)
+    serviceId = serviceDetails["pk"]
+
+    with SpinnerSegment(f"Triggering software deploy ..."):
+        response = api.perform_service_deploy(projectName, environmentId, serviceId)
+        data = json.loads(response.content)
+        deploymentId = data["job_id"]
+
+    # streaming logs until deployment is completed
+    nextToken = None
+    monitoring_max_retries = 60
+    monitoring_current_retry_count = 1
+    with SpinnerSegment(f"Streaming logs ..."):
+        while True:
+            details_response = api.get_infra_deployment_info(projectName, deploymentId)
+            details_data = json.loads(details_response.content)
+            status = details_data["status"]
+
+            logs_response = api.get_deployment_logs(projectName, deploymentId, limit=5000, nextToken=nextToken)
+            logs_data = json.loads(logs_response.content)
+            for log_record in logs_data["events"]:
+                sys.stdout.write(log_record["message"])
+
+            nextToken = logs_data.get("nextToken", None)
+
+            if status in ["LIVE", "COMPLETED", "FAILED"] or monitoring_current_retry_count > monitoring_max_retries:
+                break
+
+            monitoring_current_retry_count += 1
+            time.sleep(1)
+
+    live_max_retries = 60
+    live_current_retry_count = 1
+    with SpinnerSegment("waiting for deployment to be live ..."):
+        while True:
+            Bcolors.warn("... still waiting for deployment to be live ...")
+            details_response = api.get_infra_deployment_info(projectName, deploymentId)
+            details_data = json.loads(details_response.content)
+            status = details_data["status"]
+
+
+            if status == "LIVE" or live_current_retry_count > live_max_retries:
+                break
+
+            live_current_retry_count += 1
+            time.sleep(10)
+        
+    if status == "LIVE":
+        Bcolors.okgreen("** SUCCESS! Your service is now live :) **")
+    else:
+        Bcolors.fail("Deployment status didn't go live in time :( Please check logs in digger dashboard")
+
 
 
 @env.command(name="destroy")
