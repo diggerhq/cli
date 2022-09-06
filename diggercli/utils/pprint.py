@@ -25,6 +25,17 @@ def Halo(**kwargs):
         return FakeHalo(**kwargs)
 
 
+class SpinnerSegment:
+    def __init__(self, text, spinner="dots", *args, **kwargs):
+        self.spinner = Halo(text=text, spinner=spinner)
+    
+    def __enter__(self):
+        self.spinner.start()
+
+    def __exit__(self, *args, **kwargs):
+        self.spinner.stop()
+
+
 class Bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

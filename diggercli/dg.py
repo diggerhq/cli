@@ -54,7 +54,7 @@ from diggercli.constants import (
     AWS_REGIONS,
     ServiceType,
 )
-from diggercli.utils.pprint import Bcolors, Halo, spin
+from diggercli.utils.pprint import Bcolors, Halo, spin, SpinnerSegment
 from diggercli.utils.misc import (
     compute_env_vars_with_overrides,
     parse_env_config_options, 
@@ -1122,7 +1122,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
 @click.option('--prompt/--no-prompt', default=False)
-def env_software_build(env_name, service, prompt=False):
+def env_service_deploy(env_name, service, prompt=False):
     settings = get_project_settings()
     if service is None:        
         questions = [
@@ -1146,46 +1146,51 @@ def env_software_build(env_name, service, prompt=False):
     serviceDetails = api.get_service_by_name(projectName, service_key)
     serviceId = serviceDetails["pk"]
 
-    response = api.perform_software_build(projectName, environmentId, serviceId)
-    print(response.content)
-    data = json.loads(response.content)
-    deploymentId = data["job_id"]
-    # deploymentId = 13691
+    with SpinnerSegment(f"Triggering software deploy ..."):
+        response = api.perform_service_deploy(projectName, environmentId, serviceId)
+        data = json.loads(response.content)
+        deploymentId = data["job_id"]
 
     # streaming logs until deployment is completed
     nextToken = None
-    print("Streaming logs ...")
-    while True:
-        details_response = api.get_infra_deployment_info(projectName, deploymentId)
-        details_data = json.loads(details_response.content)
-        status = details_data["status"]
+    with SpinnerSegment(f"Streaming logs ..."):
+        while True:
+            details_response = api.get_infra_deployment_info(projectName, deploymentId)
+            details_data = json.loads(details_response.content)
+            status = details_data["status"]
 
-        logs_response = api.get_deployment_logs(projectName, deploymentId, limit=5000, nextToken=nextToken)
-        logs_data = json.loads(logs_response.content)
-        for log_record in logs_data["events"]:
-            sys.stdout.write(log_record["message"])
+            logs_response = api.get_deployment_logs(projectName, deploymentId, limit=5000, nextToken=nextToken)
+            logs_data = json.loads(logs_response.content)
+            for log_record in logs_data["events"]:
+                sys.stdout.write(log_record["message"])
 
-        nextToken = logs_data.get("nextToken", None)
+            nextToken = logs_data.get("nextToken", None)
 
-        if status == "LIVE" or status == "COMPLETED":
-            break
+            if status in ["LIVE", "COMPLETED", "FAILED"]:
+                break
 
-        time.sleep(1)
+            time.sleep(1)
 
-    print("waiting for deployment to be live ...")
-    while True:
-        print("... still waiting for deployment to be live ...")
-        details_response = api.get_infra_deployment_info(projectName, deploymentId)
-        details_data = json.loads(details_response.content)
-        status = details_data["status"]
+    max_retries = 60
+    current_retry_count = 1
+    with SpinnerSegment("waiting for deployment to be live ..."):
+        while True:
+            Bcolors.warn("... still waiting for deployment to be live ...")
+            details_response = api.get_infra_deployment_info(projectName, deploymentId)
+            details_data = json.loads(details_response.content)
+            status = details_data["status"]
 
 
-        if status == "LIVE":
-            break
+            if status == "LIVE" or current_retry_count > max_retries:
+                break
 
-        time.sleep(3)
-    
-    print("** SUCCESS! Your service is now live :) **")
+            current_retry_count += 1
+            time.sleep(10)
+        
+    if status == "LIVE":
+        Bcolors.okgreen("** SUCCESS! Your service is now live :) **")
+    else:
+        Bcolors.fail("Deployment status didn't go live in time :( Please check logs in digger dashboard")
 
 
 

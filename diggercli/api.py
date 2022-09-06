@@ -312,7 +312,7 @@ def stream_deployment_logs(projectName, deploymentId):
     )
 
 
-def perform_software_build(projectName, environmentId, serviceId):
+def perform_service_deploy(projectName, environmentId, serviceId):
     token = get_github_token()
     return do_api(
         "POST",
