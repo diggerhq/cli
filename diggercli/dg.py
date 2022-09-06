@@ -1118,7 +1118,7 @@ def env_release(env_name, service, tag="latest", aws_key=None, aws_secret=None, 
 
     report_async({"command": f"dg env {action}"}, settings=settings, status="complete")
 
-@env.command(name="software_deploy")
+@env.command(name="service_deploy")
 @click.argument("env_name", nargs=1, required=True)
 @click.option('--service', default=None)
 @click.option('--prompt/--no-prompt', default=False)
