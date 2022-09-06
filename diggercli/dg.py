@@ -1153,6 +1153,8 @@ def env_service_deploy(env_name, service, prompt=False):
 
     # streaming logs until deployment is completed
     nextToken = None
+    monitoring_max_retries = 60
+    monitoring_current_retry_count = 1
     with SpinnerSegment(f"Streaming logs ..."):
         while True:
             details_response = api.get_infra_deployment_info(projectName, deploymentId)
@@ -1166,13 +1168,14 @@ def env_service_deploy(env_name, service, prompt=False):
 
             nextToken = logs_data.get("nextToken", None)
 
-            if status in ["LIVE", "COMPLETED", "FAILED"]:
+            if status in ["LIVE", "COMPLETED", "FAILED"] or monitoring_current_retry_count > monitoring_max_retries:
                 break
 
+            monitoring_current_retry_count += 1
             time.sleep(1)
 
-    max_retries = 60
-    current_retry_count = 1
+    live_max_retries = 60
+    live_current_retry_count = 1
     with SpinnerSegment("waiting for deployment to be live ..."):
         while True:
             Bcolors.warn("... still waiting for deployment to be live ...")
@@ -1181,10 +1184,10 @@ def env_service_deploy(env_name, service, prompt=False):
             status = details_data["status"]
 
 
-            if status == "LIVE" or current_retry_count > max_retries:
+            if status == "LIVE" or live_current_retry_count > live_max_retries:
                 break
 
-            current_retry_count += 1
+            live_current_retry_count += 1
             time.sleep(10)
         
     if status == "LIVE":

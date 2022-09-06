@@ -7,6 +7,15 @@ except ImportError:
 from diggercli.constants import DIGGER_CONFIG_FILE
 
 
+def _retry_until(callable, max_retries=60, time_between_retries=10):
+    current_retry_count = 1
+    while True:
+        if current_retry_count > max_retries:
+            break
+        callable()
+        current_retry_count += 1
+        time.sleep(time_between_retries)
+
 def read_env_config_from_file(environmentName, overrideOptions={}, filePath=DIGGER_CONFIG_FILE):
     if not os.path.exists(filePath):
         return overrideOptions
